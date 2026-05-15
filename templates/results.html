@@ -1,129 +1,150 @@
 {% extends "index.html" %}
 
 {% block content %}
-<div class="results">
-    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 2rem;">
-        <h1 style="color: #2E7D32;">📊 Analysis Results</h1>
-        <a href="/analyze" class="btn">🔙 Analyze Another</a>
-    </div>
-    
-    <!-- Results Summary -->
-    <div class="results-grid">
-        <div class="result-card">
-            <h3 style="color: #666; margin-bottom: 0.5rem;">Growth Phase</h3>
-            <h2 style="color: #2E7D32; font-size: 2rem;">{{ results.stage }}</h2>
-            <p style="color: #666;">Confidence: {{ "%.1f"|format(results.stage_confidence * 100) }}%</p>
-        </div>
-        
-        <div class="result-card">
-            <h3 style="color: #666; margin-bottom: 0.5rem;">Health Status</h3>
-            <h2 style="color: {% if results.health_status == 'Healthy' %}#2E7D32{% else %}#dc3545{% endif %}; font-size: 2rem;">
-                {{ results.health_status }}
-            </h2>
-            <p style="color: #666;">Confidence: {{ "%.1f"|format(results.health_confidence * 100) }}%</p>
-        </div>
-        
-        <div class="result-card">
-            <h3 style="color: #666; margin-bottom: 0.5rem;">Health Score</h3>
-            <h2 style="color: {% if results.health_score > 70 %}#2E7D32{% elif results.health_score > 50 %}#ffc107{% else %}#dc3545{% endif %}; font-size: 2rem;">
-                {{ "%.1f"|format(results.health_score) }}%
-            </h2>
-            <p style="color: #666;">{{ 'Good' if results.health_score > 70 else 'Fair' if results.health_score > 50 else 'Poor' }} Health</p>
-        </div>
-        
-        <div class="result-card">
-            <h3 style="color: #666; margin-bottom: 0.5rem;">Harvest Status</h3>
-            <h2 style="color: {% if results.is_ripped %}#2E7D32{% else %}#ffc107{% endif %}; font-size: 2rem;">
-                {{ 'Ready' if results.is_ripped else 'Not Ready' }}
-            </h2>
-            <p style="color: #666;">{{ 'Optimal harvest time' if results.is_ripped else 'Continue monitoring' }}</p>
-        </div>
-    </div>
-    
-    <!-- Image Preview -->
-    {% if filename != 'demo_cotton.jpg' %}
-    <div style="margin: 2rem 0; text-align: center;">
-        <h3 style="color: #2E7D32; margin-bottom: 1rem;">📷 Uploaded Image</h3>
-        <img src="{{ url_for('static', filename='uploads/' + filename) }}" 
-             alt="Uploaded Image" 
-             style="max-width: 100%; max-height: 400px; border-radius: 10px; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-    </div>
-    {% else %}
-    <div style="margin: 2rem 0; text-align: center;">
-        <h3 style="color: #2E7D32; margin-bottom: 1rem;">🎯 Demo Image</h3>
-        <div style="width: 100%; height: 300px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
-            <div style="text-align: center;">
-                <div style="font-size: 4rem;">🌱</div>
-                <div>Cotton Crop Demo Image</div>
-                <div style="font-size: 1rem; opacity: 0.8; margin-top: 1rem;">Bursting Phase with Pink Bollworm</div>
+<div class="results-container">
+    <div class="print-page">
+        <!-- Success Alert Animation -->
+        <div class="success-alert-container no-print">
+            <div class="success-alert">
+                <div class="success-icon">
+                    <i class="fas fa-check-circle"></i>
+                </div>
+                <div class="success-text">
+                    <strong>Success!</strong> Analysis completed successfully.
+                </div>
             </div>
         </div>
-    </div>
-    {% endif %}
-    
-    <!-- Probabilities -->
-    <div style="margin: 3rem 0;">
-        <h3 style="color: #2E7D32; margin-bottom: 1.5rem;">📈 Detailed Probabilities</h3>
+
+        <div class="results-header">
+            <h1><i class="fas fa-chart-bar"></i> Analysis Results</h1>
+            <a href="/analyze" class="btn"><i class="fas fa-arrow-left"></i> Analyze Another</a>
+        </div>
         
-        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 2rem;">
-            <!-- Phase Probabilities -->
-            <div>
-                <h4 style="color: #666; margin-bottom: 1rem;">Growth Phase Distribution</h4>
-                {% for phase, prob in results.phases.items() %}
-                <div style="margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                        <span style="color: #666;">{{ phase }}</span>
-                        <span style="color: #666; font-weight: bold;">{{ "%.1f"|format(prob * 100) }}%</span>
-                    </div>
-                    <div style="height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden;">
-                        <div style="height: 100%; 
-                                    width: {{ prob * 100 }}%; 
-                                    background: {% if loop.index0 == 0 %}#4CAF50{% elif loop.index0 == 1 %}#FFC107{% elif loop.index0 == 2 %}#FF9800{% else %}#F44336{% endif %};
-                                    border-radius: 10px;"></div>
-                    </div>
-                </div>
-                {% endfor %}
+        <!-- Results Summary -->
+        <div class="results-grid">
+            <div class="result-card">
+                <h3>Growth Phase</h3>
+                <h2 style="color: #2E7D32;">{{ results.stage }}</h2>
+                <p class="result-detail" style="color: #000;"><strong>Confidence:</strong> {{ "%.1f"|format(results.stage_confidence * 100) }}%</p>
             </div>
             
-            <!-- Health Probabilities -->
-            <div>
-                <h4 style="color: #666; margin-bottom: 1rem;">Health Status Distribution</h4>
-                {% for health, prob in results.health.items() %}
-                <div style="margin-bottom: 1rem;">
-                    <div style="display: flex; justify-content: space-between; margin-bottom: 0.25rem;">
-                        <span style="color: #666;">{{ health }}</span>
-                        <span style="color: #666; font-weight: bold;">{{ "%.1f"|format(prob * 100) }}%</span>
+            <div class="result-card">
+                <h3>Health Status</h3>
+                <h2 style="color: {% if results.health_status == 'Healthy' %}#2E7D32{% else %}#dc3545{% endif %};">
+                    {{ results.health_status }}
+                </h2>
+                <p class="result-detail" style="color: #000;"><strong>Confidence:</strong> {{ "%.1f"|format(results.health_confidence * 100) }}%</p>
+            </div>
+            
+            <div class="result-card">
+                <h3>Health Score</h3>
+                <h2 style="color: {% if results.health_score > 70 %}#2E7D32{% elif results.health_score > 50 %}#ffc107{% else %}#dc3545{% endif %};">
+                    {{ "%.1f"|format(results.health_score) }}%
+                </h2>
+                <p class="result-detail" style="color: #000; font-weight: bold;">
+                    {{ 'Good' if results.health_score > 70 else 'Fair' if results.health_score > 50 else 'Poor' }} Health
+                </p>
+            </div>
+            
+            <div class="result-card">
+                <h3>Harvest Status</h3>
+                <h2 style="color: {% if results.is_ripped %}#2E7D32{% else %}#ffc107{% endif %};">
+                    {{ 'Ready' if results.is_ripped else 'Not Ready' }}
+                </h2>
+                <p class="result-detail" style="color: #000; font-weight: bold;">
+                    {{ 'Optimal harvest time' if results.is_ripped else 'Continue monitoring' }}
+                </p>
+            </div>
+        </div>
+        
+        <!-- Image Preview -->
+        <div class="image-preview">
+            {% if filename != 'demo_cotton.jpg' %}
+                <h3><i class="fas fa-camera"></i> Uploaded Image</h3>
+                <img src="{{ url_for('static', filename='uploads/' + filename) }}" alt="Uploaded Image">
+            {% else %}
+                <h3><i class="fas fa-bullseye"></i> Demo Image</h3>
+                <div style="width: 100%; height: 300px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 10px; display: flex; align-items: center; justify-content: center; color: white; font-size: 1.5rem; box-shadow: 0 5px 15px rgba(0,0,0,0.1);">
+                    <div style="text-align: center;">
+                        <div style="font-size: 4rem;"><i class="fas fa-seedling"></i></div>
+                        <div>Cotton Crop Demo Image</div>
+                        <div style="font-size: 1rem; opacity: 0.8; margin-top: 1rem;">Bursting Phase with Pink Bollworm</div>
                     </div>
-                    <div style="height: 20px; background: #e9ecef; border-radius: 10px; overflow: hidden;">
-                        <div style="height: 100%; 
-                                    width: {{ prob * 100 }}%; 
-                                    background: {% if loop.index0 == 0 %}#4CAF50{% elif loop.index0 == 1 %}#E91E63{% elif loop.index0 == 2 %}#9C27B0{% else %}#795548{% endif %};
-                                    border-radius: 10px;"></div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+    
+    <div class="print-page">
+        <!-- Probabilities -->
+        <div class="probabilities-section">
+            <h3><i class="fas fa-chart-line"></i> Detailed Probabilities</h3>
+            
+            <div class="probabilities-grid">
+                <!-- Phase Probabilities -->
+                <div>
+                    <h4 class="mb-2" style="color: #666;">Growth Phase Distribution</h4>
+                    {% for phase, prob in results.phases.items() %}
+                    <div class="probability-item">
+                        <div class="probability-label">
+                            <span>{{ phase }}</span>
+                            <span style="font-weight: bold;">{{ "%.1f"|format(prob * 100) }}%</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-fill" 
+                                 style="width: {{ prob * 100 }}%; 
+                                        background: {% if loop.index0 == 0 %}#4CAF50{% elif loop.index0 == 1 %}#FFC107{% elif loop.index0 == 2 %}#FF9800{% else %}#F44336{% endif %};">
+                            </div>
+                        </div>
                     </div>
+                    {% endfor %}
+                </div>
+                
+                <!-- Health Probabilities -->
+                <div>
+                    <h4 class="mb-2" style="color: #666;">Health Status Distribution</h4>
+                    {% for health, prob in results.health.items() %}
+                    <div class="probability-item">
+                        <div class="probability-label">
+                            <span>{{ health }}</span>
+                            <span style="font-weight: bold;">{{ "%.1f"|format(prob * 100) }}%</span>
+                        </div>
+                        <div class="progress-container">
+                            <div class="progress-fill" 
+                                 style="width: {{ prob * 100 }}%; 
+                                        background: {% if loop.index0 == 0 %}#4CAF50{% elif loop.index0 == 1 %}#E91E63{% elif loop.index0 == 2 %}#9C27B0{% else %}#795548{% endif %};">
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Recommendations -->
+        <div class="recommendations-section">
+            <h3><i class="fas fa-lightbulb"></i> Recommendations</h3>
+            
+            <div class="recommendations-grid">
+                {% for recommendation in results.recommendations %}
+                <div class="recommendation-card">
+                    <div class="recommendation-icon"><i class="fas fa-check-circle"></i></div>
+                    <div>{{ recommendation }}</div>
                 </div>
                 {% endfor %}
             </div>
         </div>
-    </div>
-    
-    <!-- Recommendations -->
-    <div style="margin: 3rem 0; padding: 2rem; background: #f8f9fa; border-radius: 10px;">
-        <h3 style="color: #2E7D32; margin-bottom: 1.5rem;">🎯 Recommendations</h3>
         
-        <div style="display: grid; gap: 1rem;">
-            {% for recommendation in results.recommendations %}
-            <div style="display: flex; align-items: flex-start; padding: 1rem; background: white; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.05);">
-                <div style="margin-right: 1rem; color: #4CAF50; font-size: 1.2rem;">✓</div>
-                <div>{{ recommendation }}</div>
-            </div>
-            {% endfor %}
+        <!-- Analysis Time -->
+        <div class="analysis-footer">
+            Analysis completed on: <strong>{{ timestamp }}</strong>
         </div>
     </div>
     
     <!-- JSON Output -->
-    <div style="margin: 3rem 0;">
-        <h3 style="color: #2E7D32; margin-bottom: 1rem;">📋 JSON Output</h3>
-        <div style="background: #2c3e50; color: #ecf0f1; padding: 1.5rem; border-radius: 8px; overflow-x: auto; font-size: 0.9rem;">
+    <div class="json-section">
+        <h3><i class="fas fa-file-code"></i> JSON Output</h3>
+        <div class="json-container">
             <pre style="margin: 0; white-space: pre-wrap;">{
   "stage": "{{ results.stage }}",
   "stage_confidence": {{ "%.3f"|format(results.stage_confidence) }},
@@ -136,37 +157,23 @@
 }</pre>
         </div>
         
-        <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
+        <div class="action-buttons">
             <button onclick="copyJSON()" class="btn" style="background: #3498db;">
-                📋 Copy JSON
+                <i class="fas fa-copy"></i> Copy JSON
             </button>
             <button onclick="downloadJSON()" class="btn" style="background: #2ECC71;">
-                💾 Download JSON
+                <i class="fas fa-download"></i> Download JSON
             </button>
             <button onclick="window.print()" class="btn" style="background: #95a5a6;">
-                    🖨️ Print Report
+                <i class="fas fa-print"></i> Print Report
             </button>
         </div>
-    </div>
-    
-    <!-- Analysis Time -->
-    <div style="text-align: center; color: #666; font-size: 0.9rem; margin-top: 2rem; padding-top: 2rem; border-top: 1px solid #e9ecef;">
-        Analysis completed on: <strong>{{ timestamp }}</strong>
     </div>
 </div>
 
 <script>
 function copyJSON() {
-    const jsonText = `{
-  "stage": "{{ results.stage }}",
-  "stage_confidence": {{ "%.3f"|format(results.stage_confidence) }},
-  "health_status": "{{ results.health_status }}",
-  "health_confidence": {{ "%.3f"|format(results.health_confidence) }},
-  "health_score": {{ "%.1f"|format(results.health_score) }},
-  "is_ripped": {{ results.is_ripped|lower }},
-  "has_damage": {{ results.has_damage|lower }},
-  "timestamp": "{{ timestamp }}"
-}`;
+    const jsonText = document.querySelector('.json-container pre').textContent;
     
     navigator.clipboard.writeText(jsonText).then(() => {
         alert('JSON copied to clipboard!');
@@ -204,17 +211,5 @@ function downloadJSON() {
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
 }
-
-// Add printing styles
-const style = document.createElement('style');
-style.textContent = `
-    @media print {
-        .navbar, .footer, .btn { display: none !important; }
-        .results { margin: 0; padding: 0; }
-        body { background: white !important; }
-        * { color: black !important; }
-    }
-`;
-document.head.appendChild(style);
 </script>
 {% endblock %}

@@ -2,12 +2,12 @@
 
 {% block content %}
 <div class="upload-section">
-    <h1 style="color: #2E7D32; margin-bottom: 1rem;">📸 Upload Cotton Image</h1>
+    <h1 style="color: #2E7D32; margin-bottom: 1rem;"><i class="fas fa-camera"></i> Upload Cotton Image</h1>
     <p style="color: #666; margin-bottom: 2rem;">Upload an image of cotton crop for analysis</p>
     
     <form action="/analyze" method="POST" enctype="multipart/form-data">
         <div class="upload-area" onclick="document.getElementById('fileInput').click()">
-            <div style="font-size: 4rem; color: #4CAF50; margin-bottom: 1rem;">📁</div>
+            <div style="font-size: 4rem; color: #4CAF50; margin-bottom: 1rem;"><i class="fas fa-cloud-upload-alt"></i></div>
             <h3>Click to upload or drag & drop</h3>
             <p>PNG, JPG, JPEG, GIF (Max: 10MB)</p>
         </div>
@@ -21,24 +21,24 @@
         
         <div style="margin: 2rem 0;">
             <button type="submit" class="btn btn-primary btn-large" style="width: 100%;">
-                🔍 Analyze Image
+                <i class="fas fa-search"></i> Analyze Image
             </button>
         </div>
     </form>
     
     <div style="margin-top: 2rem; padding: 1.5rem; background: #f8f9fa; border-radius: 10px;">
-        <h3 style="color: #2E7D32; margin-bottom: 1rem;">💡 Tips for Best Results:</h3>
-        <ul style="text-align: left; list-style-position: inside; color: #666;">
-            <li>Use clear, well-lit images</li>
-            <li>Focus on cotton bolls</li>
-            <li>Capture from multiple angles if possible</li>
-            <li>Ensure image is not blurry</li>
-            <li>File size should be less than 10MB</li>
+        <h3 style="color: #2E7D32; margin-bottom: 1rem;"><i class="fas fa-lightbulb"></i> Tips for Best Results:</h3>
+        <ul style="text-align: left; list-style-position: inside; color: #666; list-style-type: none;">
+            <li><i class="fas fa-check" style="color: #4CAF50; margin-right: 10px;"></i> Use clear, well-lit images</li>
+            <li><i class="fas fa-check" style="color: #4CAF50; margin-right: 10px;"></i> Focus on cotton bolls</li>
+            <li><i class="fas fa-check" style="color: #4CAF50; margin-right: 10px;"></i> Capture from multiple angles if possible</li>
+            <li><i class="fas fa-check" style="color: #4CAF50; margin-right: 10px;"></i> Ensure image is not blurry</li>
+            <li><i class="fas fa-check" style="color: #4CAF50; margin-right: 10px;"></i> File size should be less than 10MB</li>
         </ul>
     </div>
     
     <div style="margin-top: 2rem;">
-        <p>Don't have an image? <a href="/demo" style="color: #4CAF50; text-decoration: none; font-weight: bold;">View Demo Results →</a></p>
+        <p>Don't have an image? <a href="/demo" style="color: #4CAF50; text-decoration: none; font-weight: bold;">View Demo Results <i class="fas fa-arrow-right"></i></a></p>
     </div>
 </div>
 
