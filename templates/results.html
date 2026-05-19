@@ -1,5 +1,9 @@
 {% extends "index.html" %}
 {% block content %}
+{% set disease = results.disease|default({}) %}
+{% set growth = results.growth|default({}) %}
+{% set disease_confidences = disease.all_confidences|default({}) %}
+{% set growth_boxes = growth.boxes|default([]) %}
 <section class="main-content">
     <div class="container" style="padding-bottom: 4rem;">
 
@@ -32,20 +36,20 @@
             <ul class="results-list">
                 <li>
                     <b>Predicted Class:</b>
-                    {{ results.disease.predicted_class }}
-                    <span style="color:var(--text-muted);">(Confidence: {{ results.disease.confidence|round(2) }})</span>
+                    {{ disease.predicted_class|default("Unknown") }}
+                    <span style="color:var(--text-muted);">(Confidence: {{ disease.confidence|default(0)|float|round(2) }})</span>
                 </li>
-                <li><b>Health Score:</b> {{ results.disease.health_score|round(4) }}%</li>
+                <li><b>Health Score:</b> {{ disease.health_score|default(0)|float|round(4) }}%</li>
             </ul>
             <table class="results-table reveal-stagger">
                 <tr class="reveal reveal-fade-in">
                     <th>Disease Class</th>
                     <th>Probability</th>
                 </tr>
-                {% for cname, prob in results.disease.all_confidences.items() %}
+                {% for cname, prob in disease_confidences.items() %}
                 <tr class="reveal reveal-fade-in">
                     <td>{{ cname }}</td>
-                    <td>{{ prob|round(4) }}</td>
+                    <td>{{ prob|default(0)|float|round(4) }}</td>
                 </tr>
                 {% endfor %}
             </table>
@@ -54,12 +58,12 @@
             <h2 class="results-section-title">
                 <i class="fas fa-seedling"></i> Growth Stage Detection (YOLOv8)
             </h2>
-            {% if results.growth.main_class %}
+            {% if growth.main_class %}
             <ul class="results-list">
                 <li>
                     <b>Main Stage:</b>
-                    {{ results.growth.main_class }}
-                    <span style="color:var(--text-muted);">(Confidence: {{ results.growth.confidence|round(2) }})</span>
+                    {{ growth.main_class }}
+                    <span style="color:var(--text-muted);">(Confidence: {{ growth.confidence|default(0)|float|round(2) }})</span>
                 </li>
             </ul>
             <table class="results-table reveal-stagger">
@@ -68,10 +72,10 @@
                     <th>Confidence</th>
                     <th>BBox</th>
                 </tr>
-                {% for box in results.growth.boxes %}
+                {% for box in growth_boxes %}
                 <tr class="reveal reveal-fade-in">
                     <td>{{ box.class_name }}</td>
-                    <td>{{ box.confidence|round(3) }}</td>
+                    <td>{{ box.confidence|default(0)|float|round(3) }}</td>
                     <td>[{{ box.bbox[0]|int }}, {{ box.bbox[1]|int }}, {{ box.bbox[2]|int }}, {{ box.bbox[3]|int }}]</td>
                 </tr>
                 {% endfor %}
@@ -108,7 +112,7 @@
 <!-- JS for drawing bounding boxes -->
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-    {% if image_b64 and results.growth.boxes %}
+    {% if image_b64 and growth_boxes %}
         function scale(x, inMin, inMax, outMin, outMax) {
             return ((x - inMin)*(outMax - outMin)/(inMax-inMin)) + outMin;
         }
@@ -119,7 +123,7 @@ document.addEventListener("DOMContentLoaded", function() {
         svg.setAttribute('width', viewW);
         svg.setAttribute('height', viewH);
 
-        {% for box in results.growth.boxes %}
+        {% for box in growth_boxes %}
             let x1 = scale({{ box.bbox[0] }}, 0, origW, 0, viewW);
             let y1 = scale({{ box.bbox[1] }}, 0, origH, 0, viewH);
             let x2 = scale({{ box.bbox[2] }}, 0, origW, 0, viewW);
@@ -137,7 +141,7 @@ document.addEventListener("DOMContentLoaded", function() {
 
             // Add label
             let label = document.createElementNS("http://www.w3.org/2000/svg","text");
-            label.textContent = "{{ box.class_name }} ({{ box.confidence|round(2) }})";
+            label.textContent = "{{ box.class_name }} ({{ box.confidence|default(0)|float|round(2) }})";
             label.setAttribute('x', x1+2);
             label.setAttribute('y', Math.max(y1-8, 12));
             label.setAttribute('fill', '#e51d22');
