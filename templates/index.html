@@ -20,6 +20,93 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <!-- Three.js CDN for interactive 3D model simulation -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <style>
+        .chatbot-widget {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 320px;
+            background: var(--bg-card, #ffffff);
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            border: 1px solid var(--border-color, #e0e0e0);
+            transition: all 0.3s ease;
+        }
+        .chatbot-header {
+            background: var(--primary-green, #2e8b57);
+            color: #ffffff;
+            padding: 12px 15px;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .chatbot-body {
+            height: 380px;
+            display: flex;
+            flex-direction: column;
+        }
+        .chat-messages {
+            flex-grow: 1;
+            padding: 15px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            background: var(--bg-body, #f9f9f9);
+        }
+        .chat-message {
+            max-width: 85%;
+            padding: 10px 14px;
+            border-radius: 15px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+        }
+        .ai-message {
+            background: var(--bg-chat-ai, #e8f5e9);
+            color: var(--text-color, #333333);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .user-message {
+            background: var(--primary-green, #2e8b57);
+            color: #ffffff;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .chat-input-container {
+            display: flex;
+            padding: 10px;
+            border-top: 1px solid var(--border-color, #e0e0e0);
+            background: var(--bg-card, #ffffff);
+        }
+        .chat-input-container input {
+            flex-grow: 1;
+            border: 1px solid var(--border-color, #e0e0e0);
+            border-radius: 20px;
+            padding: 8px 15px;
+            outline: none;
+            background: transparent;
+            color: var(--text-color, #333333);
+        }
+        .chat-send-btn {
+            background: none;
+            border: none;
+            color: var(--primary-green, #2e8b57);
+            cursor: pointer;
+            padding: 0 10px;
+            font-size: 1.2rem;
+            transition: transform 0.2s;
+        }
+        .chat-send-btn:hover {
+            transform: scale(1.1);
+        }
+    </style>
 </head>
 <body>
     <!-- Professional Print Frame (Only visible in print) -->
@@ -36,6 +123,7 @@
                 <li><a href="/">Home</a></li>
                 <li><a href="/analyze">Analyze</a></li>
                 <li><a href="/comparison">Field Comparison</a></li>
+
                 <li><a href="/demo">Demo</a></li>
                 <li><a href="/tutorials">Tutorials</a></li>
                 <li><a href="/stories">Stories</a></li>
@@ -197,6 +285,7 @@
                 <a href="/">Home</a>
                 <a href="/analyze">Analyze</a>
                 <a href="/comparison">Field Comparison</a>
+                <a href="/dashboard">Dashboard</a>
                 <a href="/demo">Demo</a>
                 <a href="/tutorials">Tutorials</a>
                 <a href="#">Support</a>
@@ -723,6 +812,78 @@
             animate();
             setTimeout(handleResize, 200);
         })();
+    </script>
+
+    <!-- Chatbot Widget -->
+    <div id="chatbot-widget" class="chatbot-widget no-print">
+        <div class="chatbot-header" onclick="toggleChat()">
+            <div><i class="fas fa-robot"></i> Agri-Vision Assistant</div>
+            <i class="fas fa-chevron-up" id="chatbot-toggle-icon"></i>
+        </div>
+        <div class="chatbot-body" id="chatbot-body" style="display: none;">
+            <div class="chat-messages" id="chat-messages">
+                <div class="chat-message ai-message">
+                    Hello! I'm your AI assistant. How can I help you with your farm today?
+                </div>
+            </div>
+            <div class="chat-input-container">
+                <input type="text" id="chat-input" placeholder="Type your question..." onkeypress="handleChatKeyPress(event)">
+                <button onclick="sendChatMessage()" class="chat-send-btn"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function toggleChat() {
+            const body = document.getElementById('chatbot-body');
+            const icon = document.getElementById('chatbot-toggle-icon');
+            if (body.style.display === 'none') {
+                body.style.display = 'flex';
+                icon.classList.remove('fa-chevron-up');
+                icon.classList.add('fa-chevron-down');
+            } else {
+                body.style.display = 'none';
+                icon.classList.remove('fa-chevron-down');
+                icon.classList.add('fa-chevron-up');
+            }
+        }
+
+        function handleChatKeyPress(e) {
+            if (e.key === 'Enter') {
+                sendChatMessage();
+            }
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chat-input');
+            const message = input.value.trim();
+            if (!message) return;
+
+            // Add user message to UI
+            const messages = document.getElementById('chat-messages');
+            messages.innerHTML += `<div class="chat-message user-message">${message}</div>`;
+            input.value = '';
+            messages.scrollTop = messages.scrollHeight;
+
+            // Call API
+            try {
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ message: message })
+                });
+                const data = await response.json();
+                
+                // Add AI message
+                setTimeout(() => {
+                    messages.innerHTML += `<div class="chat-message ai-message">${data.reply}</div>`;
+                    messages.scrollTop = messages.scrollHeight;
+                }, 400); // Small delay for realistic feel
+            } catch (err) {
+                messages.innerHTML += `<div class="chat-message ai-message" style="color:#ff4e50;">Sorry, I couldn't connect right now.</div>`;
+                messages.scrollTop = messages.scrollHeight;
+            }
+        }
     </script>
 </body>
 </html>

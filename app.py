@@ -88,6 +88,7 @@ def load_models():
             resnet_model = torch.load(
                 'models/cotton_crop_disease_classification/full_resnet50_model.pth',
                 map_location=torch.device('cpu'),
+                weights_only=False
             )
             logger.info("ResNet50 model loaded successfully")
         except Exception as e:
@@ -266,6 +267,82 @@ def resize_image(image, max_dim=MAX_INFERENCE_DIMENSION):
     new_size = (int(width * scale), int(height * scale))
     return cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
 
+def calculate_disease_severity(health_score):
+    return max(0.0, 100.0 - health_score)
+
+def predict_yield(health_score, growth_stage, area_acres=1.0):
+    base_yield = 700 
+    health_factor = health_score / 100.0
+    stage_factors = {
+        "Cotton Blossom": 0.8,
+        "Cotton Bud": 0.9,
+        "Early Boll": 1.0,
+        "Matured Cotton Boll": 1.1,
+        "Split Cotton Boll": 1.0
+    }
+    g_factor = stage_factors.get(growth_stage, 0.9)
+    estimated_yield = base_yield * health_factor * g_factor * area_acres
+    confidence = min(95.0, 50.0 + (health_score * 0.4))
+    
+    return {
+        "estimated_yield_kg_per_acre": round(estimated_yield, 2),
+        "confidence_percentage": round(confidence, 2)
+    }
+
+def generate_farmer_insights(disease_result, growth_result):
+    insights = []
+    dclass = disease_result["predicted_class"]
+    hscore = disease_result["health_score"]
+    gmain = growth_result.get("main_class", "Unknown")
+    
+    if dclass != "Healthy":
+        insights.append(f"Possible {dclass} risk detected. Immediate action advised.")
+    else:
+        if hscore > 80:
+            insights.append("Crop is currently healthy. No immediate disease risks detected.")
+        else:
+            insights.append("Crop shows slight stress. Monitor closely for early signs of disease.")
+            
+    if gmain == "Cotton Blossom":
+        insights.append("Expected harvest in 45–60 days.")
+    elif gmain == "Cotton Bud":
+        insights.append("Expected harvest in 30–45 days.")
+    elif gmain == "Early Boll":
+        insights.append("Expected harvest in 20–30 days.")
+    elif gmain == "Matured Cotton Boll":
+        insights.append("Expected harvest in 10–15 days. Prepare equipment.")
+    elif gmain == "Split Cotton Boll":
+        insights.append("Ready for harvest. Ideal harvesting window is within 7 days.")
+        
+    return insights
+
+def generate_advanced_recommendations(disease_result, growth_result):
+    gmain = growth_result.get("main_class", "Unknown")
+    dclass = disease_result["predicted_class"]
+    
+    adv_recs = {
+        "irrigation_timing": "Maintain standard schedule (every 7-10 days depending on soil moisture).",
+        "fertilizer_suggestions": "Use balanced NPK (e.g., 20-20-20) as per standard guidelines.",
+        "pest_prevention": "Install sticky traps and monitor for early pest signs.",
+        "harvesting_window": "Monitor crop maturity daily."
+    }
+    
+    if gmain in ["Cotton Blossom", "Cotton Bud"]:
+        adv_recs["irrigation_timing"] = "Increase watering frequency to support blooming."
+        adv_recs["fertilizer_suggestions"] = "Apply potassium-rich fertilizers to boost flower development."
+    elif gmain in ["Matured Cotton Boll", "Split Cotton Boll"]:
+        adv_recs["irrigation_timing"] = "Reduce or stop irrigation to harden bolls and prevent rot."
+        adv_recs["harvesting_window"] = "Immediate to 1-2 weeks."
+        
+    if dclass == "Aphids":
+        adv_recs["pest_prevention"] = "Use neem oil or recommended insecticide for Aphids immediately."
+    elif dclass == "Army worm":
+        adv_recs["pest_prevention"] = "Apply specific anti-worm biological controls like Bacillus thuringiensis (Bt)."
+    elif dclass == "Cotton Boll Rot":
+        adv_recs["irrigation_timing"] = "Stop irrigation immediately to allow soil and plant base to dry."
+        
+    return adv_recs
+
 
 def analyze_image(image):
     # First detect cotton growth stage
@@ -279,7 +356,11 @@ def analyze_image(image):
             "growth": growth,
             "recommendations": [
                 "Please upload a valid cotton crop image."
-            ]
+            ],
+            "yield_prediction": None,
+            "advanced_recommendations": None,
+            "farmer_insights": None,
+            "disease_severity": None
         }
 
     # Continue disease analysis only for cotton crops
@@ -288,10 +369,20 @@ def analyze_image(image):
     # Generate recommendations
     recs = generate_recommendations(disease, growth)
 
+    # New AI features
+    severity = calculate_disease_severity(disease["health_score"])
+    y_pred = predict_yield(disease["health_score"], growth["main_class"])
+    adv_recs = generate_advanced_recommendations(disease, growth)
+    insights = generate_farmer_insights(disease, growth)
+
     return {
         "disease": disease,
         "growth": growth,
         "recommendations": recs,
+        "disease_severity": severity,
+        "yield_prediction": y_pred,
+        "advanced_recommendations": adv_recs,
+        "farmer_insights": insights
     }
 
 # UTILITY: For image bounding box rendering in the frontend, also supply dimensions
@@ -363,6 +454,11 @@ def build_comparison_result(old_results, new_results):
 
     if new_results.get("recommendations"):
         summary.append(f"Model priority: {new_results['recommendations'][0]}")
+        
+    # Append to farmer insights if present
+    if new_results.get("farmer_insights") is not None:
+        insight_msg = f"Crop health improved by {abs_change:.1f}% this week." if change > 0 else (f"Crop health declined by {abs_change:.1f}% this week." if change < 0 else "Crop health remained stable this week.")
+        new_results["farmer_insights"].insert(0, insight_msg)
 
     return {
         "old_score": old_score,
@@ -506,7 +602,11 @@ def demo():
     example_json = {
         "disease": demo_disease,
         "growth": demo_growth,
-        "recommendations": generate_recommendations(demo_disease, demo_growth)
+        "recommendations": generate_recommendations(demo_disease, demo_growth),
+        "disease_severity": calculate_disease_severity(demo_disease["health_score"]),
+        "yield_prediction": predict_yield(demo_disease["health_score"], demo_growth["main_class"]),
+        "advanced_recommendations": generate_advanced_recommendations(demo_disease, demo_growth),
+        "farmer_insights": generate_farmer_insights(demo_disease, demo_growth)
     }
     return render_template(
         "results.html",
@@ -541,6 +641,62 @@ def api_analyze():
         logger.error(f"API analysis error: {e}")
         return jsonify({'error': str(e)}), 500
 
+import re
+import random
+
+# Enable CORS for all origins (helps with preflight OPTIONS requests)
+from flask_cors import CORS
+CORS(app)
+@app.route("/api/chat_test", methods=["GET"])
+def api_chat_test():
+    return jsonify({"status": "ok"})
+
+@app.route("/api/chat", methods=["POST"])
+@app.route("/api/chat/", methods=["POST"])
+def api_chat():
+    data = request.get_json()
+    if not data or "message" not in data:
+        return jsonify({"reply": "I'm sorry, I didn't receive a message."}), 400
+        
+    message = data["message"].lower()
+    
+    # Simulated AI responses for agricultural queries
+    responses = {
+        r"\b(hello|hi|hey)\b": [
+            "Hello there! How can I assist you with your cotton crop today?", 
+            "Hi! Need any help analyzing your farm data?"
+        ],
+        r"\b(disease|sick|spots|rot|blight)\b": [
+            "If you're noticing leaf spots or rotting, it could be Bacterial Blight or Target Spot. I highly recommend taking a picture and uploading it to our Analyze tab for an AI diagnosis.",
+            "Diseases like Cotton Boll Rot can spread quickly. Upload a photo of the affected plant to get specific treatment recommendations!"
+        ],
+        r"\b(yield|harvest|produce)\b": [
+            "Yield depends heavily on the crop's health score and current growth stage. Typically, a healthy acre yields 500-800 kg. Check out the Dashboard for predictions across your fields!",
+            "For accurate yield predictions, upload a field image in the Analyze tab and I'll calculate it for you."
+        ],
+        r"\b(fertilizer|nutrient|npk|potassium)\b": [
+            "Cotton responds well to a balanced NPK fertilizer. During the blooming and early boll stages, potassium is critical to maximize yield.",
+            "Avoid excessive nitrogen late in the season, as it promotes leafy growth rather than boll development."
+        ],
+        r"\b(water|irrigation|dry)\b": [
+            "Maintain regular watering during the blossom phase. However, once bolls mature and start splitting, you should reduce irrigation to prevent rot.",
+            "Monitor soil moisture closely! Overwatering can be just as harmful as underwatering, leading to root rot."
+        ],
+        r"\b(pest|worm|aphid|bug)\b": [
+            "Pests like Pink Bollworm and Aphids are common enemies of cotton. I recommend deploying pheromone traps and scouting the fields twice a week.",
+            "If you suspect Aphids, check the underside of the leaves. Use neem oil for early control, or chemical insecticides if the infestation is severe."
+        ],
+    }
+    
+    reply = "I'm your Agri-Vision AI assistant. I specialize in cotton farming, crop diseases, and yield optimization. How can I help you?"
+    
+    for pattern, replies in responses.items():
+        if re.search(pattern, message):
+            reply = random.choice(replies)
+            break
+            
+    return jsonify({"reply": reply})
+
 @app.route("/health")
 def health():
     model_loaded = resnet_model is not None and yolo_model is not None
@@ -568,6 +724,8 @@ def tutorials():
 def stories():
     return render_template("stories.html")
 
+
+
 if __name__ == '__main__':
     logger.info("=" * 60)
     logger.info("Agri-Vision Cotton Analysis System")
@@ -578,6 +736,7 @@ if __name__ == '__main__':
     logger.info("/              - Home page")
     logger.info("/analyze       - Upload and analyze image")
     logger.info("/comparison    - Compare two field images")
+
     logger.info("/demo          - View demo results")
     logger.info("/api/analyze   - API endpoint (POST)")
     logger.info("/health        - Health check")

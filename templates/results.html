@@ -80,6 +80,16 @@
 
                     {{ disease.health_score|default(0)|float|round(2) }}%
                 </li>
+                {% if results.disease_severity is not none %}
+                <li>
+                    <b>Disease Severity:</b>
+                    <div class="health-bar" style="background: rgba(0,0,0,0.1);">
+                        <div class="health-fill" style="width: {{ results.disease_severity|float|round(0) }}%; background: linear-gradient(90deg, #ff4e50, #f9d423);">
+                        </div>
+                    </div>
+                    {{ results.disease_severity|float|round(2) }}%
+                </li>
+                {% endif %}
 
             <table class="results-table reveal-stagger">
                 <tr class="reveal reveal-fade-in">
@@ -159,20 +169,73 @@
             ========================================================= -->
 
 
-            <!-- Recommendations -->
+            <!-- Farmer-Friendly Insights -->
+            {% if results.farmer_insights %}
             <div class="result-card">
-            <h2 class="results-section-title">
-                <i class="fas fa-lightbulb"></i> Recommendations
-            </h2>
-            <ul class="results-list reveal-stagger">
-                {% for rec in results.recommendations %}
-                    <li class="reveal reveal-slide-left">{{ rec }}</li>
-                {% endfor %}
-            </ul>
+                <h2 class="results-section-title">
+                    <i class="fas fa-comment-dots"></i> Farmer-Friendly Insights
+                </h2>
+                <ul class="results-list reveal-stagger">
+                    {% for insight in results.farmer_insights %}
+                        <li class="reveal reveal-slide-left"><b>•</b> {{ insight }}</li>
+                    {% endfor %}
+                </ul>
             </div>
+            {% endif %}
+
+            <!-- Yield Prediction Engine -->
+            {% if results.yield_prediction %}
+            <div class="result-card">
+                <h2 class="results-section-title">
+                    <i class="fas fa-chart-line"></i> Yield Prediction Engine
+                </h2>
+                <ul class="results-list">
+                    <li><b>Estimated Yield:</b> {{ results.yield_prediction.estimated_yield_kg_per_acre }} kg/acre</li>
+                    <li>
+                        <b>Prediction Confidence:</b>
+                        <div class="health-bar" style="width: 200px; display: inline-block; margin: 0 10px; vertical-align: middle;">
+                            <div class="health-fill" style="width: {{ results.yield_prediction.confidence_percentage }}%; background: var(--emerald-green);"></div>
+                        </div>
+                        {{ results.yield_prediction.confidence_percentage }}%
+                    </li>
+                </ul>
+            </div>
+            {% endif %}
+
+            <!-- Advanced Recommendations -->
+            {% if results.advanced_recommendations %}
+            <div class="result-card">
+                <h2 class="results-section-title">
+                    <i class="fas fa-lightbulb"></i> AI Recommendation System
+                </h2>
+                <ul class="results-list reveal-stagger">
+                    <li class="reveal reveal-slide-left"><b><i class="fas fa-water"></i> Irrigation Timing:</b> {{ results.advanced_recommendations.irrigation_timing }}</li>
+                    <li class="reveal reveal-slide-left"><b><i class="fas fa-leaf"></i> Fertilizer Suggestions:</b> {{ results.advanced_recommendations.fertilizer_suggestions }}</li>
+                    <li class="reveal reveal-slide-left"><b><i class="fas fa-bug"></i> Pest Prevention Alerts:</b> {{ results.advanced_recommendations.pest_prevention }}</li>
+                    <li class="reveal reveal-slide-left"><b><i class="fas fa-tractor"></i> Ideal Harvesting Window:</b> {{ results.advanced_recommendations.harvesting_window }}</li>
+                </ul>
+            </div>
+            {% else %}
+            <!-- Fallback generic recommendations -->
+            <div class="result-card">
+                <h2 class="results-section-title">
+                    <i class="fas fa-lightbulb"></i> Recommendations
+                </h2>
+                <ul class="results-list reveal-stagger">
+                    {% for rec in results.recommendations %}
+                        <li class="reveal reveal-slide-left">{{ rec }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
 
             <div class="results-footer">
                 <b>Analysis Time:</b> {{ timestamp }}
+            </div>
+
+            <div style="display: flex; justify-content: flex-end; gap: 1rem; margin-top: 2rem; margin-bottom: 2rem;">
+                <button onclick="readInsights()" class="upload-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem; background: var(--secondary-green);"><i class="fas fa-volume-up"></i> Voice Assistant</button>
+                <button onclick="exportToPDF()" class="upload-btn" style="padding: 0.5rem 1rem; font-size: 0.9rem;"><i class="fas fa-file-pdf"></i> Export PDF</button>
             </div>
 
             <!-- Raw output collapsible for advanced use -->
@@ -201,6 +264,7 @@ document.addEventListener("DOMContentLoaded", function() {
         svg.setAttribute('height', viewH);
 
         {% for box in growth_boxes %}
+        {
             let x1 = scale({{ box.bbox[0] }}, 0, origW, 0, viewW);
             let y1 = scale({{ box.bbox[1] }}, 0, origH, 0, viewH);
             let x2 = scale({{ box.bbox[2] }}, 0, origW, 0, viewW);
@@ -226,8 +290,40 @@ document.addEventListener("DOMContentLoaded", function() {
             label.setAttribute('stroke', 'white');
             label.setAttribute('stroke-width', '0.7');
             svg.appendChild(label);
+        }
         {% endfor %}
     {% endif %}
 });
+
+// PDF Export Function
+function exportToPDF() {
+    window.print();
+}
+
+// Voice Assistant Function
+function readInsights() {
+    const insights = [
+        {% if results.farmer_insights %}
+        {% for insight in results.farmer_insights %}
+            "{{ insight }}",
+        {% endfor %}
+        {% endif %}
+        {% if results.yield_prediction %}
+            "Estimated yield is {{ results.yield_prediction.estimated_yield_kg_per_acre }} kilograms per acre.",
+        {% endif %}
+    ];
+    
+    if (!window.speechSynthesis) {
+        alert("Speech synthesis is not supported in this browser.");
+        return;
+    }
+    
+    window.speechSynthesis.cancel(); // stop any ongoing speech
+    let textToSpeak = "Here are your crop analysis insights. " + insights.join(" ");
+    let utterance = new SpeechSynthesisUtterance(textToSpeak);
+    // Try to use a regional language if possible, else default
+    // utterance.lang = 'en-IN'; // Indian English
+    window.speechSynthesis.speak(utterance);
+}
 </script>
 {% endblock %}
