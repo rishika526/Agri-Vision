@@ -2716,6 +2716,115 @@ fix-stories-card-alignment
 .stories-grid .card {
     width: 100%;
 
+
+    /* =========================================================
+   Advanced Stories Page Responsiveness Improvements
+
+   This enhancement improves:
+   - Card alignment consistency
+   - Responsive grid spacing
+   - Mobile readability
+   - Hover interaction smoothness
+   - Layout adaptability for smaller screens
+   - Visual balance across device sizes
+
+   The goal is to create a cleaner,
+   more modern, and responsive stories page
+   experience while preserving the Agri-Vision
+   futuristic UI design language.
+========================================================= */
+
+/* Smooth interaction animation improvements */
+
+.stories-grid .card {
+    will-change: transform;
+
+    width: 100%;
+}
+
+/* Improved hover interaction */
+
+.stories-grid .card:hover {
+    transform:
+        translateY(-10px)
+        scale(1.02);
+
+    box-shadow:
+        0 18px 40px rgba(0,0,0,0.28),
+        0 0 20px rgba(76,255,153,0.10);
+
+    cursor: pointer;
+}
+
+/* Responsive container spacing improvements */
+
+.stories-header {
+    max-width: 720px;
+
+    margin-inline: auto;
+}
+
+.stories-grid {
+    row-gap: 2rem;
+}
+
+/* =========================================================
+   Tablet Responsive Optimization
+========================================================= */
+
+@media (max-width: 992px) {
+
+    .stories-grid {
+        gap: 1.8rem;
+    }
+
+    .stories-grid .card {
+        min-height: 100%;
+    }
+}
+
+/* =========================================================
+   Mobile Responsive Optimization
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .stories-grid {
+        grid-template-columns: 1fr;
+
+        gap: 1.5rem;
+    }
+
+    .stories-grid .card {
+        border-radius: 20px;
+
+        padding: 1.5rem;
+    }
+
+    .stories-grid .card-body {
+        gap: 1rem;
+    }
+}
+
+/* =========================================================
+   Small Device Readability Improvements
+========================================================= */
+
+@media (max-width: 480px) {
+
+    .stories-grid .card h3 {
+        font-size: 1.2rem;
+    }
+
+    .stories-grid .card p {
+        line-height: 1.7;
+    }
+
+    .stories-grid {
+        gap: 1.2rem;
+    }
+}
+
 /* ==========================================================
    Enhanced Demo Results Page UI/UX Styling
    ----------------------------------------------------------
