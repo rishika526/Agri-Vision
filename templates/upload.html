@@ -238,7 +238,26 @@ function useMyLocation() {
             }
             </style>
             </form>
+            <script>
+                document.querySelector("form").addEventListener("submit", function (e) {
+                    const fileInput = document.getElementById("fileInput");
 
+                    if (!fileInput.files.length) {
+                        alert("Please upload an image first.");
+                        e.preventDefault();
+                        return;
+                    }
+                    const button = document.querySelector('button[type="submit"]');
+                    const progressPanel = document.getElementById("streamProgressPanel");
+
+                    button.disabled = true;
+                    button.innerHTML = "Analyzing...";
+
+                    if (progressPanel) {
+                        progressPanel.style.display = "block";
+                    }
+                });
+            </script>
             <div id="loadingOverlay" class="loading-overlay hidden" aria-hidden="true">
                 <div class="loading-panel">
                     <div class="loading-spinner"></div>
