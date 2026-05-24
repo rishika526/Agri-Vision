@@ -8,6 +8,7 @@ Optimized via a Two-Pointer Ambiguity Filter for overlapping disease classes.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import logging
 import os
@@ -235,13 +236,22 @@ class ModelManager:
             },
         }
 
+
 model_manager = ModelManager()
 
+resnet_model = None
+yolo_model = None
+
+
 def load_models():
-    return model_manager.load_models()
+    """Wrapper for backward compatibility"""
+    global resnet_model, yolo_model
+    resnet_model, yolo_model = model_manager.load_models()
+    return resnet_model, yolo_model
+
 
 def ensure_models_loaded() -> None:
-    model_manager.load_models()
+    load_models()
 
 
 # -------------------------------------------------------------------
@@ -254,6 +264,7 @@ def _ensure_rgb(image: np.ndarray) -> np.ndarray:
         raise ValueError("Expected an RGB image with 3 channels")
     return image
 
+
 def resize_image(image: np.ndarray, max_dim: int = MAX_INFERENCE_DIMENSION) -> np.ndarray:
     height, width = image.shape[:2]
     if max(height, width) <= max_dim:
@@ -262,8 +273,10 @@ def resize_image(image: np.ndarray, max_dim: int = MAX_INFERENCE_DIMENSION) -> n
     new_size = (max(1, int(width * scale)), max(1, int(height * scale)))
     return cv2.resize(image, new_size, interpolation=cv2.INTER_AREA)
 
+
 def calculate_disease_severity(health_score: float) -> float:
     return max(0.0, 100.0 - float(health_score))
+
 
 def predict_yield(health_score: float, growth_stage: str, area_acres: float = 1.0) -> Dict[str, float]:
     base_yield = 700.0
@@ -283,6 +296,7 @@ def predict_yield(health_score: float, growth_stage: str, area_acres: float = 1.
         "confidence_percentage": round(confidence, 2),
     }
 
+
 def generate_mock_heatmap(image_rgb: np.ndarray) -> np.ndarray:
     h, w, _ = image_rgb.shape
     x = np.linspace(-1, 1, w)
@@ -293,6 +307,7 @@ def generate_mock_heatmap(image_rgb: np.ndarray) -> np.ndarray:
     heatmap = np.exp(-((x_grid - cx) ** 2 + (y_grid - cy) ** 2) / (2 * sigma**2))
     heatmap = (heatmap - heatmap.min()) / (heatmap.max() - heatmap.min() + 1e-8)
     return heatmap
+
 
 def apply_heatmap_on_image(image_rgb: np.ndarray, heatmap: np.ndarray, alpha: float = 0.6, beta: float = 0.4) -> np.ndarray:
     h, w, _ = image_rgb.shape
@@ -391,8 +406,11 @@ def preprocess_image_for_resnet(image: np.ndarray, target_size: Tuple[int, int] 
     tensor = transform(image).unsqueeze(0)
     return tensor
 
+
 def infer_disease(image: np.ndarray) -> Dict[str, Any]:
-    resnet_model, _ = model_manager.load_models()
+    global resnet_model
+    if resnet_model is None:
+        resnet_model, _ = model_manager.load_models()
 
     if resnet_model is not None:
         processed = preprocess_image_for_resnet(image)
@@ -469,6 +487,7 @@ def infer_disease(image: np.ndarray) -> Dict[str, Any]:
         "interpretation_message": interpretation_message,
     }
 
+
 def infer_growth_stage(image: np.ndarray) -> Dict[str, Any]:
     _, yolo_model = model_manager.load_models()
     result = {
@@ -510,6 +529,7 @@ def infer_growth_stage(image: np.ndarray) -> Dict[str, Any]:
         })
     result["raw"] = boxes
     return result
+
 
 def generate_recommendations(disease_result: Dict[str, Any], growth_result: Dict[str, Any], weather: Optional[Dict[str, Any]] = None) -> list[str]:
     recs: list[str] = []
@@ -555,6 +575,7 @@ def generate_recommendations(disease_result: Dict[str, Any], growth_result: Dict
 
     return recs[:6]
 
+
 def generate_farmer_insights(disease_result: Dict[str, Any], growth_result: Dict[str, Any]) -> list[str]:
     insights = []
     dclass = disease_result["predicted_class"]
@@ -580,6 +601,7 @@ def generate_farmer_insights(disease_result: Dict[str, Any], growth_result: Dict
         insights.append("Ready for harvest. Ideal harvesting window is within 7 days.")
 
     return insights
+
 
 def generate_advanced_recommendations(disease_result: Dict[str, Any], growth_result: Dict[str, Any]) -> Dict[str, str]:
     gmain = growth_result.get("main_class", "Unknown")
@@ -608,6 +630,7 @@ def generate_advanced_recommendations(disease_result: Dict[str, Any], growth_res
 
     return adv_recs
 
+
 def encode_image_for_display(image: np.ndarray) -> str:
     display_image = resize_image(image, DISPLAY_IMAGE_MAX_DIMENSION)
     encode_params = [int(cv2.IMWRITE_JPEG_QUALITY), DISPLAY_JPEG_QUALITY]
@@ -616,8 +639,20 @@ def encode_image_for_display(image: np.ndarray) -> str:
         raise ValueError("Failed to encode image for display")
     return base64.b64encode(buffer).decode("utf-8")
 
+
 def is_allowed_image(filename: str) -> bool:
     return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def calculate_file_hash(file_storage) -> str:
+    """Generate SHA-256 hash for an uploaded file using chunk reading."""
+    sha256_hash = hashlib.sha256()
+    file_storage.seek(0)
+    for byte_block in iter(lambda: file_storage.read(4096), b""):
+        sha256_hash.update(byte_block)
+    file_storage.seek(0)
+    return sha256_hash.hexdigest()
+
 
 def read_uploaded_image(file_storage) -> Tuple[str, np.ndarray, np.ndarray]:
     safe_filename = secure_filename(file_storage.filename)
@@ -626,6 +661,7 @@ def read_uploaded_image(file_storage) -> Tuple[str, np.ndarray, np.ndarray]:
     if image is None:
         raise ValueError("Error reading image file")
     return safe_filename, image, cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+
 
 def analyze_image(image: np.ndarray) -> Dict[str, Any]:
     resnet_model, yolo_model = model_manager.load_models()
@@ -689,6 +725,7 @@ def analyze_image(image: np.ndarray) -> Dict[str, Any]:
     except Exception as exc:
         logger.error("Unexpected error in image analysis: %s", exc)
         return {"error": "The AI model encountered an unexpected error while analyzing the image. Please verify the image file format and content and try again."}
+
 
 def build_comparison_result(old_results: Dict[str, Any], new_results: Dict[str, Any]) -> Dict[str, Any]:
     if not isinstance(old_results, dict) or not isinstance(new_results, dict):
@@ -756,17 +793,21 @@ def add_no_cache_headers(response):
     response.headers["Expires"] = "0"
     return response
 
+
 def is_pytest_mode() -> bool:
     return "PYTEST_CURRENT_TEST" in os.environ
+
 
 @app.route("/")
 def index():
     lang = request.args.get("lang", "en")
     return render_template("index.html", text=LANG.get(lang, LANG["en"]), lang=lang)
 
+
 @app.route("/set-language/<lang>")
 def set_language(lang):
     return redirect(url_for("index", lang=lang))
+
 
 @app.template_filter("datetimeformat")
 def datetimeformat_filter(value):
@@ -774,17 +815,21 @@ def datetimeformat_filter(value):
         return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     return value
 
+
 @app.route("/tutorials")
 def tutorials():
     return render_template("tutorials.html")
+
 
 @app.route("/support")
 def support():
     return render_template("support.html")
 
+
 @app.route("/stories")
 def stories():
     return render_template("stories.html")
+
 
 @app.route("/dashboard")
 def dashboard():
@@ -796,9 +841,11 @@ def dashboard():
     ]
     return render_template("dashboard.html", farms=farms)
 
+
 @app.route("/history")
 def history():
     return render_template("history.html")
+
 
 @app.route("/health")
 def health():
@@ -813,6 +860,7 @@ def health():
         "models": diagnostics,
         "service": "Agri-Vision Cotton Analysis API",
     })
+
 
 @app.route("/analyze", methods=["GET", "POST"])
 def analyze():
@@ -878,6 +926,7 @@ def analyze():
 
     return render_template("upload.html")
 
+
 @app.route("/comparison", methods=["GET", "POST"])
 def comparison():
     error_message = None
@@ -896,6 +945,19 @@ def comparison():
             if not is_allowed_image(uploaded_file.filename):
                 flash(f"Invalid file type for {label}. Please upload PNG, JPG, JPEG, or GIF.", "error")
                 return redirect(request.url)
+
+        try:
+            last_week_file = request.files["last_week_image"]
+            current_week_file = request.files["current_week_image"]
+            
+            last_week_hash = calculate_file_hash(last_week_file)
+            current_week_hash = calculate_file_hash(current_week_file)
+            
+            if last_week_hash == current_week_hash:
+                error_message = "Duplicate field images detected. Please upload two different images for meaningful comparison analysis."
+                return render_template("comparison.html", error_message=error_message)
+        except Exception as exc:
+            logger.error("Hashing error: %s", exc)
 
         try:
             old_filename, old_image, old_rgb = read_uploaded_image(request.files["last_week_image"])
@@ -944,6 +1006,7 @@ def comparison():
                 new_image_b64=encode_image_for_display(new_image) if new_image is not None else None,
             )
     return render_template("comparison.html")
+
 
 @app.route("/demo")
 def demo():
@@ -1022,9 +1085,11 @@ def demo():
         logger.error(f"Demo route failed: {e}")
         return redirect(url_for("index"))
 
+
 @app.route("/api/chat_test", methods=["GET"])
 def api_chat_test():
     return jsonify({"status": "ok"})
+
 
 @app.route("/api/chat", methods=["POST"])
 @app.route("/api/chat/", methods=["POST"])
@@ -1050,6 +1115,7 @@ def api_chat():
             break
     return jsonify({"reply": reply})
 
+
 @app.route("/api/weather")
 def api_weather():
     lat = request.args.get("lat", type=float)
@@ -1072,6 +1138,7 @@ def api_weather():
 
     weather["weather_recommendations"] = generate_weather_recommendations(weather)
     return jsonify({"status": "success", "weather": weather})
+
 
 @app.route("/api/analyze", methods=["POST"])
 def api_analyze():
@@ -1109,6 +1176,7 @@ def api_analyze():
         logger.error("API analysis trigger error: %s", exc)
         return jsonify({"error": str(exc)}), 500
 
+
 @app.route("/api/task/<task_id>", methods=["GET"])
 def get_task_status(task_id):
     if is_pytest_mode():
@@ -1133,6 +1201,7 @@ def get_task_status(task_id):
     else:
         response = {"state": task.state, "status": str(task.info)}
     return jsonify(response)
+
 
 @app.route("/api/analyze_stream", methods=["POST"])
 def api_analyze_stream():
@@ -1238,6 +1307,7 @@ def api_analyze_stream():
             return
 
     return Response(stream_with_context(generate()), mimetype="text/event-stream", headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
+
 
 @app.route("/analyze_result", methods=["POST"])
 def analyze_result():
