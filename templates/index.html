@@ -32,11 +32,36 @@
             border-radius: 12px;
             box-shadow: 0 5px 20px rgba(0,0,0,0.15);
             z-index: 1000;
-            display: flex;
+            display: none;
             flex-direction: column;
             overflow: hidden;
             border: 1px solid var(--border-color, #e0e0e0);
             transition: all 0.3s ease;
+        }
+        .chatbot-widget.active {
+            display: flex;
+        }
+        .chatbot-launcher {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary-green, #2e8b57);
+            color: #ffffff;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-size: 1.5rem;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.20);
+            z-index: 1000;
+            transition: transform 0.2s ease, background-color 0.2s ease;
+        }
+        .chatbot-launcher:hover {
+            transform: scale(1.08);
+            background: var(--emerald-green, #1b633b);
         }
         .chatbot-header {
             background: var(--primary-green, #2e8b57);
@@ -978,5 +1003,36 @@
         });
         </script>
         <div class="trail-container"></div>
+
+        <!-- Chatbot Launcher -->
+        <div id="chatbot-launcher" class="chatbot-launcher no-print" title="Chat with Agri-Vision AI">
+            <i class="fas fa-comment-alt"></i>
+        </div>
+
+        <!-- Chatbot Widget -->
+        <div id="chatbot-widget" class="chatbot-widget no-print">
+            <div class="chatbot-header">
+                <span><i class="fas fa-comments"></i> Agri-Vision AI</span>
+                <button id="chatbot-close-btn" style="background:none; border:none; color:white; cursor:pointer; font-size:1.1rem; padding:0 5px;" aria-label="Close chat">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="chatbot-body">
+                <div class="chat-messages">
+                    <div class="chat-message ai-message">
+                        Hello! I'm your Agri-Vision AI assistant. Ask me anything about cotton crops, farming practices, pests, or disease prevention.
+                    </div>
+                </div>
+                <div class="chat-input-container">
+                    <input type="text" id="chat-input" placeholder="Type a message..." autocomplete="off">
+                    <button id="chat-send-btn" class="chat-send-btn" aria-label="Send message">
+                        <i class="fas fa-paper-plane"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Chatbot Controller -->
+        <script src="{{ url_for('static', filename='js/chatbot.js') }}"></script>
 </body>
 </html>
