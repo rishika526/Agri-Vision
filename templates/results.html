@@ -706,11 +706,6 @@
     renderScanHistory();
   });
 
-  function exportToPDF() {
-    window.print();
-  }
-});
-
 async function exportToPDF() {
   const { jsPDF } = window.jspdf;
   const element = document.querySelector('.results-card');
@@ -770,6 +765,10 @@ async function exportToPDF() {
   }
 }
 
+function exportExplainabilityReport() {
+  window.print();
+}
+
 function readInsights() {
   var insights = [];
   {% if results.farmer_insights %}
@@ -777,50 +776,31 @@ function readInsights() {
   insights.push("{{ insight | replace('"', '\\"') }}");
   {% endfor %}
   {% endif %}
-  {% if yield_estimate %}
+  {% if yield_estimate and yield_estimate.yield_min_acre is not none %}
   insights.push("Based on current conditions, your estimated cotton yield is between {{ yield_estimate.yield_min_acre }} and {{ yield_estimate.yield_max_acre }} quintals per acre.");
   {% endif %}
 
   if (!window.speechSynthesis) {
     alert("Speech synthesis is not supported in this browser.");
     return;
-
-  function exportExplainabilityReport() {
-    window.print();
   }
+  window.speechSynthesis.cancel();
+  var utterance = new SpeechSynthesisUtterance("Here are your crop analysis insights. " + insights.join(" "));
+  window.speechSynthesis.speak(utterance);
+}
 
-  function readInsights() {
-    var insights = [];
-    {% if results.farmer_insights %}
-    {% for insight in results.farmer_insights %}
-    insights.push("{{ insight | replace('"', '\\"') }}");
-    {% endfor %}
-    {% endif %}
-    {% if results.yield_prediction %}
-    insights.push("Estimated yield is {{ results.yield_prediction.estimated_yield_kg_per_acre }} kilograms per acre.");
-    {% endif %}
-
-    if (!window.speechSynthesis) {
-      alert("Speech synthesis is not supported in this browser.");
-      return;
-    }
-    window.speechSynthesis.cancel();
-    var utterance = new SpeechSynthesisUtterance("Here are your crop analysis insights. " + insights.join(" "));
-    window.speechSynthesis.speak(utterance);
-  }
-
-  document.addEventListener("DOMContentLoaded", function () {
-      const cropHistory = JSON.parse(localStorage.getItem("cropHistory")) || [];
-      const scanData = {
-          disease: `{{ disease.detected_issue|default("Unknown") }}`,
-          confidence: `{{ disease.model_confidence|default(0)|float|round(2) }}%`,
-          treatment: `{{ disease_info.get('treatment', 'No treatment available.') }}`,
-          date: `{{ timestamp }}`,
-          image: "data:image/jpeg;base64,{{ image_b64 }}"
-      };
-      cropHistory.unshift(scanData);
-      localStorage.setItem("cropHistory", JSON.stringify(cropHistory));
-  });
+document.addEventListener("DOMContentLoaded", function () {
+    const cropHistory = JSON.parse(localStorage.getItem("cropHistory")) || [];
+    const scanData = {
+        disease: `{{ disease.detected_issue|default("Unknown") }}`,
+        confidence: `{{ disease.model_confidence|default(0)|float|round(2) }}%`,
+        treatment: `{{ disease_info.get('treatment', 'No treatment available.') }}`,
+        date: `{{ timestamp }}`,
+        image: "data:image/jpeg;base64,{{ image_b64 }}"
+    };
+    cropHistory.unshift(scanData);
+    localStorage.setItem("cropHistory", JSON.stringify(cropHistory));
+});
 </script>
 
 {% endblock %}
