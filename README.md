@@ -68,6 +68,7 @@ Agri-Vision uses deep learning and computer vision techniques to:
 - [Tech Stack](#️-tech-stack)
 - [Dataset Information](#-dataset-information)
 - [Model Information](#-model-information)
+- [Model Performance & Benchmarking](docs/model-benchmarking.md)
 - [Project Structure](#-project-structure)
 - [Setup & Execution](#-setup--execution)
 - [API Reference](#️-api-reference)
@@ -207,6 +208,7 @@ Parameters - 25.6M
 
 # 📊 Model Results
 Check training curves and result snapshots inside the `results/` directory.
+For confusion matrices, benchmark tables, and reproducibility notes, see [Model Performance & Benchmarking](docs/model-benchmarking.md).
 
 ## Metrics for YOLOv8 (Growth Stage Prediction)
 mAP50 - 60.06%  
