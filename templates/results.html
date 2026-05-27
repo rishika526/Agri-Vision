@@ -133,7 +133,7 @@
       {% endif %}
 
       <div class="result-card">
-        <h2 class="results-section-title">
+        <h2 class="results-section-title" data-i18n="res_growth_title">
           <i class="fas fa-seedling"></i> Growth Stage Detection (YOLOv8)
         </h2>
 
@@ -197,7 +197,7 @@
                   text-align: center;
                   max-width: 50px;
                   line-height: 1.1;
-              ">{{ stage }}</span>
+              " data-i18n="{{ stage }}">{{ stage }}</span>
             </div>
             {% if is_current %}{% set found_current = true %}{% endif %}
           {% endfor %}
@@ -284,23 +284,56 @@
         </ul>
         {% endif %}
       </div>
-
-      <div class="agri-leaf-compare-wrap fade-in">
-        <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 1.5rem;">
-          <div>
-            <h2 class="results-section-title" style="margin-top: 0; margin-bottom: 0.2rem;"><i class="fas fa-microscope"></i> Visual Health Comparison</h2>
-            <p style="color: var(--text-muted); font-size: 0.95rem; margin: 0;">
-              Compare the expected healthy appearance with your uploaded crop image.
-            </p>
+      
+      {% if weather %}
+      <div class="weather-card" style="
+          margin: 2rem 0;
+          padding: 1.5rem;
+          background: linear-gradient(135deg, #667eea15, #764ba215);
+          border: 1px solid #dee2e6;
+          border-radius: 16px;
+          box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+      ">
+        <h3 style="margin: 0 0 1rem; color: #343a40; font-size: 1.1rem;">
+          ☁️ Current Weather Conditions
+        </h3>
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 1rem;">
+          {% if weather.temperature is not none %}
+          <div class="w-stat" style="text-align:center; padding: 0.75rem; background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size: 1.8rem;">🌡️</div>
+            <div style="font-size: 1.3rem; font-weight: 600; color: #e74c3c;">{{ weather.temperature }}°C</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">Temperature</div>
           </div>
+          {% endif %}
+          {% if weather.humidity is not none %}
+          <div class="w-stat" style="text-align:center; padding: 0.75rem; background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size: 1.8rem;">💧</div>
+            <div style="font-size: 1.3rem; font-weight: 600; color: #3498db;">{{ weather.humidity }}%</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">Humidity</div>
+          </div>
+          {% endif %}
+          {% if weather.precipitation is not none %}
+          <div class="w-stat" style="text-align:center; padding: 0.75rem; background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size: 1.8rem;">🌧️</div>
+            <div style="font-size: 1.3rem; font-weight: 600; color: #2980b9;">{{ weather.precipitation }} mm</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">Precipitation</div>
+          </div>
+          {% endif %}
+          {% if weather.description is not none %}
+          <div class="w-stat" style="text-align:center; padding: 0.75rem; background: white; border-radius: 10px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+            <div style="font-size: 1.8rem;">{{ weather.icon|default('🌤️') }}</div>
+            <div style="font-size: 1.3rem; font-weight: 600; color: #2ecc71;">{{ weather.description }}</div>
+            <div style="font-size: 0.75rem; color: #6c757d;">Condition</div>
+          </div>
+          {% endif %}
         </div>
         {% if weather %}
         <p style="margin:0.75rem 0 0; font-size:0.75rem; color:#adb5bd; text-align:right;">
           Source: {{ weather.source|default('open-meteo')|title }} · Lat {{ "%.3f"|format(weather.lat|default(0)) }}, Lon {{ "%.3f"|format(weather.lon|default(0)) }}
         </p>
         {% endif %}
-
-        <div class="agri-leaf-compare-grid">
+      </div>
+      {% endif %}
 
           <!-- Healthy Panel -->
           <div class="agri-leaf-compare-card">
@@ -352,14 +385,14 @@
       <!-- Yield Estimate -->
       {% if yield_estimate %}
       <div class="result-card" style="background: linear-gradient(135deg, #f0fff4 0%, #e6ffed 100%); border: 1px solid #b7ebc0;">
-        <h2 class="results-section-title">
+        <h2 class="results-section-title" data-i18n="res_yield_title">
           <i class="fas fa-chart-line"></i> Interactive Yield Calculator
         </h2>
 
         <!-- Interactive Acreage Slider -->
         <div class="no-print" style="margin-bottom: 1.5rem; padding: 1.25rem; background: white; border-radius: 12px; border: 1px solid #b7ebc0; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem;">
-            <label for="acreage-slider" style="font-weight: 700; color: #1a7f37; font-size: 0.95rem;">
+            <label for="acreage-slider" style="font-weight: 700; color: #1a7f37; font-size: 0.95rem;" data-i18n="res_yield_adj">
               <i class="fas fa-expand-arrows-alt"></i> Adjust Farm Size (Acres)
             </label>
             <span id="acreage-display" style="font-weight: 800; color: #ffffff; background: #1a7f37; padding: 4px 12px; border-radius: 20px; font-size: 0.9rem; box-shadow: 0 2px 5px rgba(26,127,55,0.2);">
@@ -389,7 +422,7 @@
 
         <div style="display:flex; flex-wrap:wrap; gap:1rem; margin-bottom:1.2rem;">
           <div style="flex:1; min-width:150px; text-align:center; background:white; border-radius:12px; padding:1.2rem; box-shadow:0 3px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.02);">
-            <div style="font-size:0.75rem; color:#6c757d; margin-bottom:0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Per Acre</div>
+            <div style="font-size:0.75rem; color:#6c757d; margin-bottom:0.4rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="res_yield_per_acre">Per Acre</div>
             <div style="font-size:1.6rem; font-weight:800; color:#1a7f37; margin-bottom: 0.2rem;">
               {{ yield_estimate.yield_min_acre }}–{{ yield_estimate.yield_max_acre }}
             </div>
@@ -400,7 +433,7 @@
           </div>
 
           <div style="flex:1; min-width:150px; text-align:center; background: linear-gradient(145deg, #ffffff, #f8fff9); border-radius:12px; padding:1.2rem; box-shadow:0 3px 12px rgba(0,0,0,0.08); border: 2px solid #b7ebc0;">
-            <div style="font-size:0.75rem; color:#1a7f37; margin-bottom:0.4rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;">Total Field Estimate</div>
+            <div style="font-size:0.75rem; color:#1a7f37; margin-bottom:0.4rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="res_yield_total">Total Field Estimate</div>
             <div style="font-size:1.8rem; font-weight:900; color:#1a7f37; margin-bottom: 0.2rem;" id="total-yield-display">
               {{ yield_estimate.yield_min_total }}–{{ yield_estimate.yield_max_total }}
             </div>
@@ -411,14 +444,14 @@
           </div>
 
           <div style="flex:1; min-width:150px; text-align:center; background:white; border-radius:12px; padding:1.2rem; box-shadow:0 3px 12px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.02);">
-            <div style="font-size:0.75rem; color:#6c757d; margin-bottom:0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;">Confidence</div>
+            <div style="font-size:0.75rem; color:#6c757d; margin-bottom:0.5rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px;" data-i18n="res_yield_conf">Confidence</div>
             <div style="font-size:1.3rem; font-weight:800; color:{{ yield_estimate.confidence_color }}; margin-bottom: 0.4rem;">
               {{ yield_estimate.confidence_label }}
             </div>
             <div style="background:#e9ecef; border-radius:10px; height:8px; margin:0.5rem auto; width:85%; overflow: hidden;">
               <div style="background:{{ yield_estimate.confidence_color }}; width:{{ yield_estimate.confidence_pct }}%; height:100%; border-radius:10px; transition: width 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);"></div>
             </div>
-            <div style="font-size:0.8rem; color:#495057; font-weight: 700;">{{ yield_estimate.confidence_pct }}% reliability</div>
+            <div style="font-size:0.8rem; color:#495057; font-weight: 700;"><span id="rel-pct">{{ yield_estimate.confidence_pct }}</span>% <span data-i18n="res_yield_reliability">reliability</span></div>
           </div>
         </div>
 
@@ -451,7 +484,7 @@
 
 
       <div class="result-card">
-        <h2 class="results-section-title">
+        <h2 class="results-section-title" data-i18n="res_recs">
           <i class="fas fa-lightbulb"></i> Recommendations
         </h2>
         <ul class="results-list reveal-stagger">
@@ -463,12 +496,12 @@
 
       {% if results.farmer_insights %}
       <div class="result-card">
-        <h2 class="results-section-title">
+        <h2 class="results-section-title" data-i18n="res_insights_title">
           <i class="fas fa-comment-dots"></i> Farmer-Friendly Insights
         </h2>
         <ul class="results-list reveal-stagger">
           {% for insight in results.farmer_insights %}
-          <li class="reveal reveal-slide-left"><b>•</b> {{ insight }}</li>
+          <li class="reveal reveal-slide-left"><b>•</b> <span data-i18n="{{ insight }}">{{ insight }}</span></li>
           {% endfor %}
         </ul>
         <button onclick="readInsights()" class="btn btn-secondary" style="margin-top: 1rem;"><i class="fas fa-volume-high"></i> Listen to Insights</button>
@@ -619,13 +652,21 @@
 
       <!-- Footer Actions -->
       <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem; margin-bottom:2rem;" class="no-print">
-        <button onclick="readInsights()" class="upload-btn" style="padding:0.5rem 1rem; font-size:0.9rem; background:var(--secondary-green);">
+        <button onclick="readInsights()" class="upload-btn" data-i18n="res_voice" style="padding:0.5rem 1rem; font-size:0.9rem; background:var(--secondary-green);">
           <i class="fas fa-volume-up"></i> Voice Assistant
         </button>
-        <button onclick="exportToPDF()" class="upload-btn" style="padding:0.5rem 1rem; font-size:0.9rem;">
+        <button onclick="exportToPDF()" class="upload-btn" data-i18n="res_pdf" style="padding:0.5rem 1rem; font-size:0.9rem;">
           <i class="fas fa-file-pdf"></i> Download PDF Report
         </button>
       </div>
+
+      <div class="results-footer"><b data-i18n="res_time">Analysis Time:</b> {{ timestamp }}</div>
+
+      <details class="results-details">
+        <summary class="results-summary">Show Full Model Output (JSON)</summary>
+        <pre class="results-pre">{{ raw_json }}</pre>
+      </details>
+
     </div>
   </div>
 </section>

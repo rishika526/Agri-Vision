@@ -1,41 +1,31 @@
-Flask>=3.1.0
-numpy>=2.2.0
-opencv-python-headless>=4.12.0
-Pillow>=11.0.0
-flask-cors>=6.0.0
-matplotlib>=3.10.0
-scikit-learn>=1.7.0
-python-dotenv>=1.1.0
-Werkzeug>=3.1.0
-ultralytics>=8.3.0
-torch>=2.0.0
-torchvision>=0.15.0
+# Core Framework
+Flask>=2.3.0
+Flask-Cors>=5.0.0
+Flask-Login>=0.6.3
+Flask-SQLAlchemy>=3.1.1
+Werkzeug>=2.3.7
 
-# Deployment
-gunicorn>=23.0.0
+# Data Science & ML
+numpy>=1.26.0
+pandas>=2.0.0
+scikit-learn>=1.3.2
+scipy>=1.15.0
+tensorflow-cpu>=2.13.0
+torch>=2.1.0
+torchvision>=0.16.0
+ultralytics>=8.4.0
+opencv-python-headless>=4.8.0
 
-# Testing
-pytest>=8.3.0
-pytest-cov>=6.0.0
-
-# API docs
+# Utilities & Misc
+Pillow>=10.0.0
+python-dotenv>=1.0.1
+requests>=2.34.0
+reportlab>=4.5.0
+matplotlib>=3.7.0
+celery>=5.6.0
+redis>=7.4.0
 flasgger>=0.9.7
 
-# Async tasks
-celery>=5.4.0
-redis>=6.0.0
-
-# Utilities
-requests>=2.32.0
-urllib3>=2.2.0
-
-# PDF/CSV Export
-reportlab>=4.0.0
-pandas>=2.0.0
-
-# Database
-flask-sqlalchemy>=3.1.0
-
-# Authentication
-flask-login>=0.6.0
-bcrypt>=4.0.0
+# Testing
+pytest>=9.0.0
+pytest-cov>=7.0.0
