@@ -597,7 +597,7 @@
         {% endif %}
 
         <!-- Report Export -->
-        <div style="display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--card-border); padding-top: 1.5rem; margin-top: 1.5rem;">
+        <div style="display: flex; justify-content: flex-end; gap: 1rem; border-top: 1px solid var(--card-border); padding-top: 1.5rem; margin-top: 1.5rem;" class="no-print">
           <button id="btn-download-explainability-report" onclick="exportExplainabilityReport()" class="upload-btn" style="background: linear-gradient(135deg, var(--deep-forest) 0%, var(--emerald-green) 100%); border: none; box-shadow: 0 4px 12px rgba(16,185,129,0.25);">
             <i class="fas fa-file-pdf"></i> Download Explainability Report
           </button>
@@ -618,7 +618,7 @@
       </div>
 
       <!-- Footer Actions -->
-      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem; margin-bottom:2rem;">
+      <div style="display:flex; justify-content:flex-end; gap:1rem; margin-top:2rem; margin-bottom:2rem;" class="no-print">
         <button onclick="readInsights()" class="upload-btn" style="padding:0.5rem 1rem; font-size:0.9rem; background:var(--secondary-green);">
           <i class="fas fa-volume-up"></i> Voice Assistant
         </button>
@@ -726,7 +726,7 @@
 
         var deleteBtn = document.createElement("button");
         deleteBtn.type = "button";
-        deleteBtn.className = "agri-scan-history-delete";
+        deleteBtn.className = "agri-scan-history-delete no-print";
         deleteBtn.setAttribute("data-index", index);
         deleteBtn.textContent = "Remove";
         body.appendChild(deleteBtn);
@@ -773,7 +773,15 @@ async function exportToPDF() {
   exportBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Generating PDF...';
   exportBtn.disabled = true;
 
-  const excludeElements = element.querySelectorAll('.upload-btn, #toggle-ai-focus, .results-summary, .results-pre, .no-print');
+  // Comprehensive element exclusion for cleaner PDF export
+  const excludeElements = element.querySelectorAll(
+    '.no-print, .export-hide, .upload-btn, #toggle-ai-focus, ' +
+    '.results-summary, .results-pre, .trail-container, .theme-toggle-btn, ' +
+    '[onclick*="exportToPDF"], [onclick*="exportExplainability"], ' +
+    '.agri-scan-history-delete, .results-action-btn, ' +
+    'button[onclick*="readInsights"]'
+  );
+  
   excludeElements.forEach(el => el.setAttribute('data-html2canvas-ignore', 'true'));
 
   try {
@@ -781,7 +789,9 @@ async function exportToPDF() {
       scale: 2,
       useCORS: true,
       logging: false,
-      backgroundColor: '#ffffff'
+      backgroundColor: '#ffffff',
+      allowTaint: true,
+      foreignObjectRendering: true
     });
 
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
@@ -789,7 +799,7 @@ async function exportToPDF() {
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
 
-    const margin = 10;
+    const margin = 12; // Improved margins for professional appearance
     const imgWidth = pdfWidth - (margin * 2);
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
 
@@ -808,8 +818,8 @@ async function exportToPDF() {
 
     pdf.save(`Agri-Vision-Analysis-Report-${new Date().getTime()}.pdf`);
   } catch (error) {
-    console.error('PDF Error:', error);
-    alert('Could not generate PDF directly. Using browser print as fallback.');
+    console.error('PDF Export Error:', error);
+    alert('Could not generate PDF. Using browser print as fallback.');
     window.print();
   } finally {
     exportBtn.innerHTML = originalBtnText;
