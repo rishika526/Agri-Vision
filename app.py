@@ -1171,6 +1171,233 @@ def export_pdf():
         return jsonify({"error": str(e)}), 500
 
 
+@app.route('/api/analyze/download-report', methods=['POST'])
+@login_required
+def download_analysis_report():
+    """Generate and download a professional PDF crop analysis report"""
+    try:
+        from reportlab.lib import colors
+        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.units import inch
+        from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, Image as RLImage, PageBreak
+        from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+        from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
+        from io import BytesIO
+        import base64
+        from PIL import Image as PILImage
+
+        data = request.get_json()
+        if not data:
+            return jsonify({"error": "No data provided"}), 400
+
+        disease_detected = data.get("disease_detected", "Unknown")
+        disease_confidence = data.get("disease_confidence", 0)
+        health_score = data.get("health_score", 0)
+        growth_stage = data.get("growth_stage", "Unknown")
+        growth_confidence = data.get("growth_confidence", 0)
+        image_b64 = data.get("image_b64", "")
+        recommendations = data.get("recommendations", [])
+        timestamp = data.get("timestamp", datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
+        weather_data = data.get("weather_data", {})
+        yield_data = data.get("yield_estimate", {})
+
+        pdf_buffer = BytesIO()
+        doc = SimpleDocTemplate(pdf_buffer, pagesize=letter, topMargin=0.5*inch, bottomMargin=0.5*inch)
+        elements = []
+
+        styles = getSampleStyleSheet()
+        title_style = ParagraphStyle(
+            'CustomTitle',
+            parent=styles['Heading1'],
+            fontSize=24,
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=6,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        subtitle_style = ParagraphStyle(
+            'CustomSubtitle',
+            parent=styles['Normal'],
+            fontSize=12,
+            textColor=colors.HexColor('#7f8c8d'),
+            spaceAfter=12,
+            alignment=TA_CENTER,
+            fontName='Helvetica'
+        )
+        header_style = ParagraphStyle(
+            'SectionHeader',
+            parent=styles['Heading2'],
+            fontSize=14,
+            textColor=colors.HexColor('#27ae60'),
+            spaceAfter=8,
+            spaceBefore=12,
+            fontName='Helvetica-Bold'
+        )
+        normal_style = ParagraphStyle(
+            'Normal',
+            parent=styles['Normal'],
+            fontSize=10,
+            textColor=colors.HexColor('#2c3e50'),
+            spaceAfter=6
+        )
+
+        title = Paragraph("🌾 Agri-Vision Crop Analysis Report", title_style)
+        elements.append(title)
+        subtitle = Paragraph("Professional Analysis Insights", subtitle_style)
+        elements.append(subtitle)
+        elements.append(Spacer(1, 0.15*inch))
+
+        metadata_data = [
+            ["Report Generated", timestamp],
+            ["Analysis ID", f"AGRI-{datetime.now().strftime('%Y%m%d%H%M%S')}"]
+        ]
+        metadata_table = Table(metadata_data, colWidths=[2*inch, 4*inch])
+        metadata_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#ecf0f1')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#2c3e50')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#bdc3c7'))
+        ]))
+        elements.append(metadata_table)
+        elements.append(Spacer(1, 0.2*inch))
+
+        if image_b64:
+            try:
+                image_data = base64.b64decode(image_b64.split(',')[-1] if ',' in image_b64 else image_b64)
+                img_pil = PILImage.open(BytesIO(image_data))
+                img_width = 6*inch
+                img_height = img_width * img_pil.height / img_pil.width
+                if img_height > 3.5*inch:
+                    img_height = 3.5*inch
+                    img_width = img_height * img_pil.width / img_pil.height
+
+                img_buffer = BytesIO(image_data)
+                rl_image = RLImage(img_buffer, width=img_width, height=img_height)
+                elements.append(rl_image)
+                elements.append(Spacer(1, 0.15*inch))
+            except Exception as e:
+                logger.warning(f"Could not embed image in PDF: {e}")
+
+        elements.append(Paragraph("DISEASE HEALTH ANALYSIS", header_style))
+        disease_data = [
+            ["Detected Issue", str(disease_detected)],
+            ["Confidence Score", f"{float(disease_confidence):.1f}%"],
+            ["Health Score", f"{float(health_score):.1f}%"]
+        ]
+        disease_table = Table(disease_data, colWidths=[2*inch, 4*inch])
+        disease_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e8f5e9')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1b5e20')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#a5d6a7'))
+        ]))
+        elements.append(disease_table)
+        elements.append(Spacer(1, 0.15*inch))
+
+        elements.append(Paragraph("GROWTH STAGE DETECTION", header_style))
+        growth_data = [
+            ["Current Stage", str(growth_stage)],
+            ["Stage Confidence", f"{float(growth_confidence):.1f}%"]
+        ]
+        growth_table = Table(growth_data, colWidths=[2*inch, 4*inch])
+        growth_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#e3f2fd')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#1565c0')),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+            ('TOPPADDING', (0, 0), (-1, -1), 8),
+            ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#90caf9'))
+        ]))
+        elements.append(growth_table)
+        elements.append(Spacer(1, 0.15*inch))
+
+        if weather_data:
+            elements.append(Paragraph("WEATHER CONDITIONS", header_style))
+            weather_rows = []
+            if weather_data.get('temperature') is not None:
+                weather_rows.append(["Temperature", f"{weather_data.get('temperature')}°C"])
+            if weather_data.get('humidity') is not None:
+                weather_rows.append(["Humidity", f"{weather_data.get('humidity')}%"])
+            if weather_data.get('precipitation') is not None:
+                weather_rows.append(["Precipitation", f"{weather_data.get('precipitation')} mm"])
+            if weather_data.get('description'):
+                weather_rows.append(["Condition", weather_data.get('description')])
+
+            if weather_rows:
+                weather_table = Table(weather_rows, colWidths=[2*inch, 4*inch])
+                weather_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#fff3e0')),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#e65100')),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#ffe0b2'))
+                ]))
+                elements.append(weather_table)
+                elements.append(Spacer(1, 0.15*inch))
+
+        if yield_data:
+            elements.append(Paragraph("YIELD ESTIMATE", header_style))
+            yield_rows = []
+            if yield_data.get('yield_min_acre') and yield_data.get('yield_max_acre'):
+                yield_rows.append(["Per Acre Estimate", f"{yield_data.get('yield_min_acre')}–{yield_data.get('yield_max_acre')} q/acre"])
+            if yield_data.get('yield_min_total') and yield_data.get('yield_max_total'):
+                yield_rows.append(["Total Field Estimate", f"{yield_data.get('yield_min_total')}–{yield_data.get('yield_max_total')} quintals"])
+
+            if yield_rows:
+                yield_table = Table(yield_rows, colWidths=[2*inch, 4*inch])
+                yield_table.setStyle(TableStyle([
+                    ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f3e5f5')),
+                    ('TEXTCOLOR', (0, 0), (-1, -1), colors.HexColor('#4a148c')),
+                    ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+                    ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+                    ('FONTSIZE', (0, 0), (-1, -1), 10),
+                    ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+                    ('TOPPADDING', (0, 0), (-1, -1), 8),
+                    ('GRID', (0, 0), (-1, -1), 0.5, colors.HexColor('#e1bee7'))
+                ]))
+                elements.append(yield_table)
+                elements.append(Spacer(1, 0.15*inch))
+
+        if recommendations:
+            elements.append(Paragraph("RECOMMENDATIONS", header_style))
+            rec_text = ""
+            for i, rec in enumerate(recommendations[:10], 1):
+                rec_text += f"• {rec}<br/>"
+            elements.append(Paragraph(rec_text, normal_style))
+            elements.append(Spacer(1, 0.1*inch))
+
+        elements.append(Spacer(1, 0.2*inch))
+        footer_text = "Generated by Agri-Vision Cotton Analysis System | For professional agricultural guidance, consult local extension officers"
+        elements.append(Paragraph(footer_text, ParagraphStyle('Footer', parent=styles['Normal'], fontSize=8, textColor=colors.HexColor('#95a5a6'), alignment=TA_CENTER)))
+
+        doc.build(elements)
+        pdf_buffer.seek(0)
+
+        return send_file(
+            pdf_buffer,
+            mimetype='application/pdf',
+            as_attachment=True,
+            download_name=f'agri_vision_crop_analysis_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+        )
+
+    except Exception as e:
+        logger.error(f"Error generating analysis PDF: {e}")
+        return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
+
+
 @app.route("/history")
 def history():
     return render_template("history.html")
