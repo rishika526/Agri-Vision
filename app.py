@@ -316,17 +316,11 @@ class ModelManager:
 
             if self.resnet_model is None:
                 try:
-                    try:
-                        self.resnet_model = torch.load(
-                            RESNET_MODEL_PATH,
-                            map_location=torch.device("cpu"),
-                        )
-                    except TypeError:
-                        self.resnet_model = torch.load(
-                            RESNET_MODEL_PATH,
-                            map_location=torch.device("cpu"),
-                            weights_only=False,
-                        )
+                    self.resnet_model = torch.load(
+                        RESNET_MODEL_PATH,
+                        map_location=torch.device("cpu"),
+                        weights_only=True,
+                    )
                     self.resnet_model.eval()
                     self.errors["resnet"] = None
                     logger.info("ResNet50 loaded")
@@ -1866,9 +1860,10 @@ def analyze():
                     predictor = DiseasePredictor()
                     detected_disease = results.get("disease", {}).get("predicted_class", "")
                     if detected_disease:
-                        # Convert disease name to match database format
-                        disease_name = detected_disease.replace('_', ' ').title()
-                        
+                        # Disease name is automatically normalized by DiseasePredictor
+                        # via DISEASE_DISPLAY_TO_KEY mapping, so we pass it directly
+                        disease_name = detected_disease
+
                         # Get weather-based risk
                         weather_risk = predictor.predict_disease_risk([weather], disease_name)
                         if weather_risk:
