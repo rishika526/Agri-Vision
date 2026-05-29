@@ -2417,6 +2417,38 @@ def api_analyze_stream():
 
     def generate():
         try:
+            yield f"data: {json.dumps({'status': 'uploading', 'progress': 25})}\n\n"
+
+            file_bytes = np.frombuffer(file.read(), np.uint8)
+            image = cv2.imdecode(file_bytes, cv2.IMREAD_COLOR)
+            if image is None:
+                yield f"data: {json.dumps({'status': 'error', 'message': 'Unable to process this image. Please upload a clear crop photo and try again.'})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'analyzing', 'progress': 50})}\n\n"
+
+            image_rgb = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+            compressed_rgb = resize_image(image_rgb, MAX_INFERENCE_DIMENSION)
+            yield f"data: {json.dumps({'step': 'upload_received', 'progress': 20, 'message': 'Image received, starting analysis...'})}\n\n"
+            import concurrent.futures
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as executor:
+                future = executor.submit(analyze_image, compressed_rgb)
+                try:
+                    results = future.result(timeout=60)
+                except concurrent.futures.TimeoutError:
+                    yield f"data: {json.dumps({'step': 'error', 'progress': 100, 'message': 'The request exceeded the expected processing time. Please try again later.'})}\n\n"
+                    return
+            if results.get("error"):
+                yield f"data: {json.dumps({'status': 'error', 'message': results['error']})}\n\n"
+                return
+
+            yield f"data: {json.dumps({'status': 'generating', 'progress': 75})}\n\n"
+            yield f"data: {json.dumps({'status': 'complete', 'progress': 100, 'results': results})}\n\n"
+        except Exception as e:
+            logger.error(f"Streaming analysis error: {e}")
+            yield f"data: {json.dumps({'status': 'error', 'message': 'Analysis is taking longer than expected. Please try again after some time.'})}\n\n" 
+    def generate():
+        try:
             yield f"data: {json.dumps({'status': 'uploading', 'step': 'upload_received', 'progress': 25, 'message': 'Upload received.'})}\n\n"
 
             file_bytes = np.frombuffer(file.read(), np.uint8)
