@@ -3007,14 +3007,6 @@ def api_disease_map():
     )
 
 
-# --- Advanced Dashboard ---
-
-
-@app.route("/dashboard")
-@login_required
-def dashboard():
-    """Advanced dashboard page"""
-    return render_template("dashboard.html")
 
 
 @app.route("/api/dashboard-stats")
