@@ -16,6 +16,7 @@ from typing import Any, Dict, Optional, Tuple
 from werkzeug.utils import secure_filename
 from io import BytesIO
 
+import redis
 import base64
 import cv2
 import numpy as np
@@ -61,16 +62,26 @@ try:
     redis_host = os.getenv("REDIS_HOST", "localhost")
     redis_port = int(os.getenv("REDIS_PORT", "6379"))
     redis_db = int(os.getenv("REDIS_DB", "0"))
-    redis_client = redis.Redis(host=redis_host, port=redis_port, db=redis_db, decode_responses=True)
+
+    redis_client = redis.Redis(
+        host=redis_host,
+        port=redis_port,
+        db=redis_db,
+        decode_responses=True
+    )
+
     redis_client.ping()
+
     logger.info("redis connected for caching and rate limiting")
+
     limiter = Limiter(
         get_remote_address,
         app=app,
         storage_uri=f"redis://{redis_host}:{redis_port}",
         strategy="fixed-window",
     )
-except (redis.ConnectionError, ModuleNotFoundError) as err:
+
+except (redis.exceptions.ConnectionError, ModuleNotFoundError) as err:
     logger.warning(f"caching layer bypass active: {err}")
     redis_client = None
 

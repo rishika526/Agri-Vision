@@ -777,25 +777,49 @@ nav a[href="/model-admin"]:hover {
 
     /* Typewriter */
     .typewriter {
-        display: flex;
+        display: inline-flex;
         flex-direction: column;
+        align-items: flex-start;
         gap: 8px;
         line-height: 1.1;
-        width: 100%;
-        align-items: center;
-        justify-content: center;
     }
 
     .typewriter span {
-        display: inline-block;
+        display: block;
+        width: fit-content;
+        text-align: left;
         overflow: hidden;
         white-space: nowrap;
-        border-right: 3px solid #67e8f9;
+        border-right: 3px solid #4ade80;
+        width: 0;
     }
 
-    .typewriter .line1,
-    .typewriter .line2 {
-        border-right: 3px solid #4ade80;
+    .line1 {
+        animation:
+            typing1 1.5s steps(10, end) forwards,
+            blink .7s step-end infinite;
+    }
+
+    .line2 {
+        animation:
+            typing2 2s steps(25, end) forwards 1.6s,
+            blink .7s step-end infinite;
+    }
+
+    @keyframes typing1 {
+        from { width: 0; }
+        to { width: 8ch; } /* AI-Powered */
+    }
+
+    @keyframes typing2 {
+        from { width: 0; }
+        to { width: 16ch; } /* Cotton Crop Intelligence */
+    }
+
+    @keyframes blink {
+        50% {
+            border-color: transparent;
+        }
     }
 
     /* Hero image / scanner */
