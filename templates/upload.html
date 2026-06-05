@@ -1,7 +1,7 @@
 {% extends "index.html" %}
 
 {% block content %}
-<section class="main-content">
+<section class="main-content" aria-label="Crop image upload and analysis">
     <div class="container" style="padding-bottom: 4rem;">
         <div class="glass-card reveal reveal-fade-up upload-card">
             <div class="section-header" style="margin-bottom: 1.5rem;">
@@ -34,6 +34,7 @@
                                 autocomplete="off"
                                 oninput="onCityInput(this)"
                                 class="weather-location-input"
+                                aria-label="City name for weather-aware recommendations"
                             />
                             <span id="city-tick" class="weather-location-tick">✅</span>
                         </div>
@@ -161,6 +162,7 @@
                         capture="environment"
                         style="display:none;"
                         onchange="previewImage(this)"
+                        aria-label="Capture crop image using camera"
                     />
                 </div>
 
@@ -199,7 +201,10 @@
                         accept="*/*"
                         style="display:none;"
                         onchange="previewImage(this)"
+                        aria-label="Upload crop image file"
+                        aria-describedby="upload-format-hint"
                     />
+                    <span id="upload-format-hint" class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">Accepted formats: Images and PDFs. Maximum file size: 5MB for images, 10MB for PDFs.</span>
                 </div>
 
                 <div class="smart-insights-panel">
@@ -213,18 +218,21 @@
                             <h4>Weather Status</h4>
                             <p class="insight-value">28°C Cloudy</p>
                             <span class="insight-tag good">Good for crop monitoring</span>
+                            <span class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">Status: Good</span>
                         </div>
                         <div class="insight-card moisture-card">
                             <div class="insight-icon">💧</div>
                             <h4>Soil Moisture</h4>
                             <p class="insight-value">Moderate</p>
                             <span class="insight-tag warning">Irrigation suggested</span>
+                            <span class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">Status: Warning — irrigation may be needed</span>
                         </div>
                         <div class="insight-card disease-card">
                             <div class="insight-icon">🦠</div>
                             <h4>Disease Risk</h4>
                             <p class="insight-value">Low Risk</p>
                             <span class="insight-tag success">Healthy condition</span>
+                            <span class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">Status: Low risk — healthy condition</span>
                         </div>
                         <div class="insight-card health-card">
                             <div class="insight-icon">🌱</div>
@@ -233,6 +241,7 @@
                                 <div class="health-progress-bar"></div>
                             </div>
                             <p class="health-score">86% Healthy</p>
+                            <span class="sr-only" style="position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);border:0;">Crop health score: 86 percent healthy</span>
                         </div>
                     </div>
                 </div>
@@ -243,7 +252,7 @@
                     </button>
                 </div>
                 
-                <div id="streamProgressPanel" style="display:none; margin-top:1.5rem;">
+                <div id="streamProgressPanel" style="display:none; margin-top:1.5rem;" role="region" aria-label="Analysis progress" aria-live="polite">
                     <div style="
                         background: linear-gradient(135deg, #0c1c27 0%, #043158 100%);
                         border: 1px solid rgba(255,255,255,0.1);
