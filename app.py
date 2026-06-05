@@ -110,6 +110,29 @@ def load_user(user_id):
     from models import User
     return User.query.get(user_id)
 
+# --- Google OAuth 2.0 Configuration (issue #626) ---
+from authlib.integrations.flask_client import OAuth as _OAuth
+
+_oauth = _OAuth(app)
+_google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+_google_client_secret = os.getenv("GOOGLE_CLIENT_SECRET", "")
+
+if _google_client_id and _google_client_secret:
+    _oauth.register(
+        name="google",
+        client_id=_google_client_id,
+        client_secret=_google_client_secret,
+        server_metadata_url="https://accounts.google.com/.well-known/openid-configuration",
+        client_kwargs={"scope": "openid email profile"},
+    )
+    GOOGLE_OAUTH_ENABLED = True
+    logger.info("Google OAuth 2.0 enabled.")
+else:
+    GOOGLE_OAUTH_ENABLED = False
+    logger.warning(
+        "GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET not set — Google OAuth disabled."
+    )
+
 from functools import wraps
 
 def api_login_required(f):
@@ -2677,7 +2700,76 @@ def login():
         else:
             flash('Invalid email or password', 'danger')
     
-    return render_template('login.html')
+    return render_template('login.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
+
+
+@app.route("/auth/google")
+def auth_google():
+    """Redirect to Google's OAuth 2.0 consent screen."""
+    if not GOOGLE_OAUTH_ENABLED:
+        flash("Google Sign-In is not configured on this server.", "warning")
+        return redirect(url_for("login"))
+    if current_user.is_authenticated:
+        return redirect(url_for("index"))
+    redirect_uri = url_for("auth_google_callback", _external=True)
+    return _oauth.google.authorize_redirect(redirect_uri)
+
+
+@app.route("/auth/google/callback")
+def auth_google_callback():
+    """Handle the OAuth 2.0 callback from Google."""
+    if not GOOGLE_OAUTH_ENABLED:
+        flash("Google Sign-In is not configured on this server.", "warning")
+        return redirect(url_for("login"))
+
+    try:
+        token = _oauth.google.authorize_access_token()
+        user_info = token.get("userinfo") or _oauth.google.userinfo()
+    except Exception as exc:
+        logger.warning("Google OAuth callback error: %s", exc)
+        flash("Google Sign-In failed. Please try again.", "danger")
+        return redirect(url_for("login"))
+
+    google_id = str(user_info["sub"])
+    email = user_info.get("email", "")
+    full_name = user_info.get("name", email.split("@")[0])
+    picture = user_info.get("picture", "")
+
+    from models import User
+
+    # 1. Look up by OAuth provider + ID (most reliable)
+    user = User.query.filter_by(oauth_provider="google", oauth_id=google_id).first()
+
+    # 2. Fall back to matching by email (links existing password accounts)
+    if user is None and email:
+        user = User.query.filter_by(email=email).first()
+        if user:
+            user.oauth_provider = "google"
+            user.oauth_id = google_id
+            if picture:
+                user.profile_picture = picture
+
+    # 3. Auto-create a new account for first-time Google users
+    if user is None:
+        user = User(
+            email=email,
+            full_name=full_name,
+            password_hash=None,
+            oauth_provider="google",
+            oauth_id=google_id,
+            profile_picture=picture,
+            role="farmer",
+            is_active=True,
+        )
+        db.session.add(user)
+
+    user.last_login = datetime.utcnow()
+    db.session.commit()
+
+    login_user(user)
+    logger.info("User %s signed in via Google OAuth.", user.email)
+    flash(f"Welcome, {user.full_name}! You are now signed in.", "success")
+    return redirect(url_for("index"))
 
 
 @app.route("/register", methods=["GET", "POST"])
@@ -2696,20 +2788,20 @@ def register():
         # Validation
         if not full_name or not email or not password:
             flash('All fields are required', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         if password != confirm_password:
             flash('Passwords do not match', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         if len(password) < 8:
             flash('Password must be at least 8 characters', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         from models import User
         if User.query.filter_by(email=email).first():
             flash('Email already registered', 'danger')
-            return render_template('register.html')
+            return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
         
         # Create user
         user = User(
@@ -2725,7 +2817,7 @@ def register():
         flash('Account created successfully! Please login.', 'success')
         return redirect(url_for('login'))
     
-    return render_template('register.html')
+    return render_template('register.html', google_oauth_enabled=GOOGLE_OAUTH_ENABLED)
 
 
 @app.route("/logout")
