@@ -1,6 +1,7 @@
 import base64
 import io
 import json
+import html
 from flask_login import login_user
 from models import User, db
 
@@ -11,6 +12,7 @@ import torch
 from PIL import Image
 
 import app
+import security_utils
 
 
 # --- Add Missing Fixtures Here ---
@@ -205,6 +207,14 @@ def test_home_page_en(client):
     resp = client.get("/")
     assert resp.status_code == 200
     assert b"Agri" in resp.data or b"Vision" in resp.data
+
+
+def test_home_page_hero_demo_cta_links_to_demo(client):
+    resp = client.get("/")
+    assert resp.status_code == 200
+    assert b'id="hero-demo-link"' in resp.data
+    assert b'href="/demo"' in resp.data
+    assert b"View Demo" in resp.data
 
 
 def test_home_page_te(client):
@@ -469,11 +479,13 @@ def test_post_api_analyze_valid(client, valid_image):
     resp = client.post("/api/analyze", data=data, content_type="multipart/form-data")
     assert resp.status_code == 200
     res_data = json.loads(resp.data)
+    assert "weather" in res_data
     assert res_data["status"] == "success"
     assert "results" in res_data
     assert "disease" in res_data["results"]
     assert "growth" in res_data["results"]
     assert "recommendations" in res_data["results"]
+    assert res_data["weather"] is None or isinstance(res_data["weather"],dict)
 
 
 def test_post_api_analyze_missing_file_key(client):
@@ -483,6 +495,94 @@ def test_post_api_analyze_missing_file_key(client):
     assert "error" in res_data
     assert "No file uploaded" in res_data["error"]
 
+def test_yield_estimate_weather_multiplier_changes_with_stress_weather():
+    from services.yield_service import estimate_yield
+
+    disease = {"health_score": 80.0, "predicted_class": "Healthy"}
+    growth = {"main_class": "Matured Cotton Boll"}
+    stress = {"temperature": 40, "humidity": 90, "precipitation": 0}
+
+    y_none = estimate_yield(disease, growth, weather=None)
+    y_stress = estimate_yield(disease, growth, weather=stress)
+
+    assert y_none["weather_multiplier"] == 1.0
+    assert y_stress["weather_multiplier"] < 1.0
+    assert y_none["weather_multiplier"] != y_stress["weather_multiplier"]
+
+def test_post_api_analyze_weather_null_when_resolve_returns_none(client, valid_image, monkeypatch):
+    monkeypatch.setattr(app, "resolve_weather_for_analysis", lambda **kwargs: None)
+    img_bytes = valid_image.getvalue()
+    resp = client.post(
+        "/api/analyze",
+        data={"file": (io.BytesIO(img_bytes), "cotton.png")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    body = json.loads(resp.data)
+    assert body.get("weather") is None
+    assert "yield_estimate" in body["results"]
+
+def test_post_api_analyze_invalid_field_acres(client, valid_image):
+    img_bytes = valid_image.getvalue()
+    resp = client.post(
+        "/api/analyze",
+        data={
+            "file": (io.BytesIO(img_bytes), "cotton.png"),
+            "field_acres": "not-a-number",
+        },
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 400
+    assert "field_acres" in json.loads(resp.data)["error"].lower()
+
+def test_post_api_analyze_recommendations_unique_with_weather(client, valid_image, monkeypatch):
+    monkeypatch.setattr(
+        app,
+        "resolve_weather_for_analysis",
+        lambda **kwargs: {"temperature": 40, "humidity": 90, "precipitation": 0},
+    )
+    img_bytes = valid_image.getvalue()
+    resp = client.post(
+        "/api/analyze",
+        data={"file": (io.BytesIO(img_bytes), "cotton.png"), "lat": "30.0", "lon": "31.0"},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    recs = json.loads(resp.data)["results"]["recommendations"]
+    assert len(recs) == len(set(recs))
+
+def test_analyze_web_and_api_yield_multiplier_consistent(client, valid_image, monkeypatch):
+    stress = {"temperature": 40, "humidity": 90, "precipitation": 0}
+    monkeypatch.setattr(app, "resolve_weather_for_analysis", lambda **kwargs: stress)
+    img_bytes = valid_image.getvalue()
+    file_field = (io.BytesIO(img_bytes), "cotton.png")
+    form = {"file": file_field, "lat": "29.5", "lon": "30.8"}
+
+    api_resp = client.post(
+    "/api/analyze",
+    data={"file": (io.BytesIO(img_bytes), "cotton.png"), "lat": "29.5", "lon": "30.8"},
+    content_type="multipart/form-data",
+    )
+    assert api_resp.status_code == 200
+    api_yield = json.loads(api_resp.data)["results"]["yield_estimate"]
+
+    web_resp = client.post(
+    "/analyze",
+    data={"file": (io.BytesIO(img_bytes), "cotton.png"), "lat": "29.5", "lon": "30.8"},
+    content_type="multipart/form-data",
+    )
+    assert web_resp.status_code == 200
+    text = html.unescape(web_resp.get_data(as_text=True))
+    start = text.find('<pre class="results-pre">')
+    assert start != -1
+    start += len('<pre class="results-pre">')
+    end = text.find("</pre>", start)
+    blob = text[start:end].strip()
+    web_payload = json.loads(blob)
+    web_yield = web_payload["yield_estimate"]
+
+    assert api_yield["weather_multiplier"] == web_yield["weather_multiplier"]
+    assert api_yield["combined_multiplier"] == web_yield["combined_multiplier"]
 
 def test_post_api_analyze_empty_filename(client):
     data = {"file": (io.BytesIO(b""), "")}
@@ -499,7 +599,71 @@ def test_post_api_analyze_invalid_image(client, invalid_file):
     assert resp.status_code == 400
     res_data = json.loads(resp.data)
     assert "error" in res_data
-    assert "Invalid image file" in res_data["error"]
+    assert "Invalid image" in res_data["error"]
+
+
+def test_post_api_analyze_rejects_mime_mismatch(client, valid_image, monkeypatch):
+    monkeypatch.setattr(security_utils, "detect_mime_type", lambda _data: "text/plain")
+    img_bytes = valid_image.getvalue()
+    data = {"file": (io.BytesIO(img_bytes), "test_cotton.png")}
+    resp = client.post("/api/analyze", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 400
+    res_data = json.loads(resp.data)
+    assert "error" in res_data
+    assert "Invalid image content" in res_data["error"]
+
+
+def test_post_api_analyze_oversized_file(client, oversized_file):
+    data = {"file": (oversized_file, "large_cotton.png")}
+    resp = client.post("/api/analyze", data=data, content_type="multipart/form-data")
+    assert resp.status_code == 413
+
+
+def test_api_analyze_rate_limit(client, valid_image):
+    img_bytes = valid_image.getvalue()
+    original_limit = app.app.config.get("API_UPLOAD_RATE_LIMIT")
+    app.app.config["API_UPLOAD_RATE_LIMIT"] = "1 per minute"
+    try:
+        resp_one = client.post(
+            "/api/analyze",
+            data={"file": (io.BytesIO(img_bytes), "rate_limit.png")},
+            content_type="multipart/form-data",
+            environ_base={"REMOTE_ADDR": "10.0.0.55"},
+        )
+        assert resp_one.status_code == 200
+
+        resp_two = client.post(
+            "/api/analyze",
+            data={"file": (io.BytesIO(img_bytes), "rate_limit.png")},
+            content_type="multipart/form-data",
+            environ_base={"REMOTE_ADDR": "10.0.0.55"},
+        )
+        assert resp_two.status_code == 429
+    finally:
+        app.app.config["API_UPLOAD_RATE_LIMIT"] = original_limit
+
+
+def test_api_analyze_cleans_temp_upload(client, valid_image, tmp_path):
+    app.app.config["UPLOAD_TMP_DIR"] = str(tmp_path)
+    img_bytes = valid_image.getvalue()
+    resp = client.post(
+        "/api/analyze",
+        data={"file": (io.BytesIO(img_bytes), "cleanup.png")},
+        content_type="multipart/form-data",
+    )
+    assert resp.status_code == 200
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_resolve_secret_key_requires_production_secret():
+    with pytest.raises(RuntimeError):
+        security_utils.resolve_secret_key({"FLASK_ENV": "production"})
+
+
+def test_sanitize_filename_strips_unicode_and_limits():
+    cleaned = security_utils.sanitize_filename("t\u00e9st\u2603_long_name.png")
+    assert cleaned.endswith(".png")
+    assert cleaned.isascii()
 
 
 def test_datetimeformat_filter():

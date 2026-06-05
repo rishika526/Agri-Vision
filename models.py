@@ -12,9 +12,82 @@ db = SQLAlchemy()
 ROLE_FARMER = "farmer"
 ROLE_RESEARCHER = "researcher"
 ROLE_ADMIN = "admin"
+ROLE_MODERATOR = "moderator"
+
+
+
+class Role(db.Model):
+    """Normalized RBAC Role table."""
+
+    __tablename__ = "roles"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(100), unique=True, nullable=False)
+    slug = db.Column(db.String(120), unique=True, nullable=False, index=True)
+    description = db.Column(db.String(500), nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+    deleted_at = db.Column(db.DateTime, nullable=True)
+
+
+class Permission(db.Model):
+    """Normalized RBAC Permission table."""
+
+    __tablename__ = "permissions"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    name = db.Column(db.String(150), unique=True, nullable=False)
+    slug = db.Column(db.String(190), unique=True, nullable=False, index=True)
+    description = db.Column(db.String(500), nullable=True)
+
+    # Resource/action model (useful for future filtering and UI)
+    resource = db.Column(db.String(120), nullable=True, index=True)
+    action = db.Column(db.String(120), nullable=True, index=True)
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = db.Column(
+        db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
+
+
+class RolePermission(db.Model):
+    """Role to Permission mapping."""
+
+    __tablename__ = "role_permissions"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=False, index=True)
+    permission_id = db.Column(
+        db.Integer, db.ForeignKey("permissions.id"), nullable=False, index=True
+    )
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("role_id", "permission_id", name="uq_role_permission"),
+        db.Index("ix_role_permissions_permission_id", "permission_id"),
+    )
+
+
+class UserRole(db.Model):
+    """User to Role mapping (supports multiple roles)."""
+
+    __tablename__ = "user_roles"
+
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    role_id = db.Column(db.Integer, db.ForeignKey("roles.id"), nullable=False, index=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    __table_args__ = (
+        db.UniqueConstraint("user_id", "role_id", name="uq_user_role"),
+        db.Index("ix_user_roles_role_id", "role_id"),
+    )
 
 
 class User(UserMixin, db.Model):
+
     """User model for authentication"""
 
     __tablename__ = "users"
@@ -46,12 +119,30 @@ class User(UserMixin, db.Model):
         return checkpw(password.encode("utf-8"), self.password_hash.encode("utf-8"))
 
     def is_admin(self):
-        """Check if user is admin"""
-        return self.role == ROLE_ADMIN
+        """Check if user is admin.
+
+        If RBAC mappings exist, prefer them; otherwise fall back to legacy
+        single-role field.
+        """
+        try:
+            # Prefer RBAC mappings if present.
+            return any(ur.role_id is not None and Role.query.filter(Role.id == ur.role_id, Role.slug == ROLE_ADMIN).count() > 0 for ur in self.user_roles)  # type: ignore[attr-defined]
+        except Exception:
+            return self.role == ROLE_ADMIN
 
     def is_researcher(self):
-        """Check if user is researcher or admin"""
-        return self.role in [ROLE_RESEARCHER, ROLE_ADMIN]
+        """Check if user is researcher or admin.
+
+        If RBAC mappings exist, prefer them; otherwise fall back to legacy
+        single-role field.
+        """
+        try:
+            # Prefer RBAC mappings if present.
+            return any(ur.role_id is not None and Role.query.filter(Role.id == ur.role_id, Role.slug.in_([ROLE_RESEARCHER, ROLE_ADMIN])).count() > 0 for ur in self.user_roles)  # type: ignore[attr-defined]
+        except Exception:
+            return self.role in [ROLE_RESEARCHER, ROLE_ADMIN]
+
+
 
     def to_dict(self):
         return {
@@ -417,8 +508,67 @@ class DiseasePrediction(db.Model):
         }
 
 
+class RefreshTokenFamily(db.Model):
+    """Refresh token family tracking for rotation and replay detection."""
+
+    __tablename__ = "refresh_token_families"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    session_id = db.Column(db.String(64), nullable=False, index=True)
+    is_compromised = db.Column(db.Boolean, default=False, nullable=False)
+    compromised_at = db.Column(db.DateTime, nullable=True)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+
+    refresh_tokens = db.relationship(
+        "RefreshToken",
+        backref="family",
+        lazy=True,
+        cascade="all, delete-orphan",
+    )
+
+
+class RefreshToken(db.Model):
+    """A single refresh token (hashed) with one-time use enforcement."""
+
+    __tablename__ = "refresh_tokens"
+
+    id = db.Column(db.String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    family_id = db.Column(
+        db.String(36),
+        db.ForeignKey("refresh_token_families.id"),
+        nullable=False,
+        index=True,
+    )
+    user_id = db.Column(db.String(36), db.ForeignKey("users.id"), nullable=False, index=True)
+    session_id = db.Column(db.String(64), nullable=False, index=True)
+
+    token_hash = db.Column(db.String(64), nullable=False, index=True)  # sha256 hex
+
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    expires_at = db.Column(db.DateTime, nullable=False, index=True)
+
+    revoked_at = db.Column(db.DateTime, nullable=True, index=True)
+    replaced_by_token_id = db.Column(db.String(36), nullable=True)
+
+    is_compromised = db.Column(db.Boolean, default=False, nullable=False, index=True)
+    last_used_at = db.Column(db.DateTime, nullable=True)
+
+    created_ip = db.Column(db.String(64), nullable=True)
+    created_user_agent = db.Column(db.String(255), nullable=True)
+
+    __table_args__ = (
+        db.Index(
+            "ix_refresh_tokens_family_token_hash",
+            "family_id",
+            "token_hash",
+        ),
+    )
+
+
 class DiseaseOccurrence(db.Model):
     """Model for tracking historical disease occurrences for ML training"""
+
 
     __tablename__ = "disease_occurrences"
 
