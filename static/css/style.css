@@ -590,16 +590,22 @@ nav a[href="/model-admin"]:hover {
 .language-switcher {
     padding: 6px 10px;
     border-radius: 8px;
-    border: 1px solid rgba(255, 255, 255, 0.2);
-    background: transparent;
+    border: 1px solid var(--card-border);
+    background: var(--card-bg);
     color: var(--text-color);
     cursor: pointer;
-    display: flex;
-    align-items: center;
+    font-weight: 600;
+    outline: none;
+    transition: border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+.language-switcher:hover {
+    border-color: var(--emerald-green);
 }
 
 .language-switcher option {
-    color: black;
+    background: var(--card-bg);
+    color: var(--text-color);
 }
 
 @keyframes healthPulse {
