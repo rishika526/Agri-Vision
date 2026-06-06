@@ -1704,9 +1704,58 @@ def download_analysis_report():
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 
 
-@app.route("/history")
-def history():
-    return render_template("history.html")
+@app.route("/compare")
+@login_required
+def compare():
+    ids_param = request.args.get('ids', '')
+    if not ids_param:
+        flash("No analyses selected for comparison", "warning")
+        return redirect(url_for('history'))
+
+    analysis_ids = [aid.strip() for aid in ids_param.split(',') if aid.strip()]
+
+    from models import AnalysisHistory
+    analyses = AnalysisHistory.query.filter(
+        AnalysisHistory.id.in_(analysis_ids),
+        AnalysisHistory.user_id == current_user.id
+    ).all()
+
+    if not analyses:
+        flash("No valid analyses found", "warning")
+        return redirect(url_for('history'))
+
+    canonical_fields = [
+        ('disease', 'Detected Disease'),
+        ('growth_stage', 'Growth Stage'),
+        ('confidence', 'Confidence'),
+        ('health_score', 'Health Score'),
+        ('created_at', 'Analysis Date'),
+    ]
+
+    rows = []
+    for key, label in canonical_fields:
+        row = {"label": label, "key": key, "values": []}
+        for analysis in analyses:
+            if key == 'disease':
+                val = (analysis.disease_result or {}).get('predicted_class')
+            elif key == 'growth_stage':
+                val = (analysis.growth_result or {}).get('main_class')
+            elif key == 'confidence':
+                val = analysis.confidence
+            elif key == 'health_score':
+                val = analysis.health_score
+            elif key == 'created_at':
+                val = analysis.created_at.strftime('%Y-%m-%d %H:%M') if analysis.created_at else None
+            else:
+                val = None
+            row["values"].append(val)
+        rows.append(row)
+
+    return render_template('compare.html',
+        analyses=analyses,
+        rows=rows,
+        enumerate=enumerate,
+    )
 
 
 @app.route("/health")
