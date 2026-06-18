@@ -296,8 +296,8 @@ class ModelManager:
                     self.errors["resnet"] = None
                     logger.info("ResNet50 model loaded successfully")
                 except Exception as exc:
-                    self.errors["resnet"] = str(exc)
-                    logger.warning(f"ResNet50 model not found or failed to load: {exc}")
+                    self.errors["resnet"] = "Model failed to load. See server logs for details."
+                    logger.warning(f"ResNet50 model not found or failed to load: {exc}", exc_info=True)
                     self.resnet_model = None
 
             if self.yolo_model is None:
@@ -306,8 +306,8 @@ class ModelManager:
                     self.errors["yolo"] = None
                     logger.info("YOLOv8 model loaded successfully")
                 except Exception as exc:
-                    self.errors["yolo"] = str(exc)
-                    logger.warning(f"YOLOv8 model not found or failed to load: {exc}")
+                    self.errors["yolo"] = "Model failed to load. See server logs for details."
+                    logger.warning(f"YOLOv8 model not found or failed to load: {exc}", exc_info=True)
                     self.yolo_model = None
 
             self.loaded = True
@@ -1044,8 +1044,8 @@ def list_models():
             "rollback_threshold": registry.rollback_threshold
         })
     except Exception as e:
-        logger.error(f"Error listing models: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error listing models: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 @app.route('/admin/models/active', methods=['GET'])
 def get_active_models():
@@ -1061,8 +1061,8 @@ def get_active_models():
             }
         })
     except Exception as e:
-        logger.error(f"Error getting active models: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error getting active models: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 @app.route('/admin/models/register', methods=['POST'])
 def register_model():
@@ -1092,9 +1092,8 @@ def register_model():
     except FileNotFoundError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
-        logger.error(f"Error registering model: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        logger.error(f"Error registering model: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 @app.route('/admin/models/activate', methods=['POST'])
 def activate_model():
     """Set a model version as active"""
@@ -1113,9 +1112,9 @@ def activate_model():
     except ValueError as e:
         return jsonify({"error": str(e)}), 404
     except Exception as e:
-        logger.error(f"Error activating model: {e}")
-        return jsonify({"error": str(e)}), 500
-
+        logger.error(f"Error activating model: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
+    
 @app.route('/admin/models/delete', methods=['DELETE'])
 def delete_model():
     """Delete a model version"""
@@ -1134,8 +1133,8 @@ def delete_model():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.error(f"Error deleting model: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error deleting model: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 @app.route('/admin/models/ab-testing', methods=['POST'])
 def toggle_ab_testing():
@@ -1150,8 +1149,8 @@ def toggle_ab_testing():
             "ab_test_enabled": registry.ab_test_enabled
         })
     except Exception as e:
-        logger.error(f"Error toggling A/B testing: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error toggling A/B testing: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 @app.route('/admin/models/ab-ratio', methods=['POST'])
 def set_ab_ratio():
@@ -1171,8 +1170,8 @@ def set_ab_ratio():
     except ValueError as e:
         return jsonify({"error": str(e)}), 400
     except Exception as e:
-        logger.error(f"Error setting A/B ratio: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error setting A/B ratio: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 @app.route('/admin/models/metrics', methods=['GET'])
 def get_model_metrics():
@@ -1184,8 +1183,8 @@ def get_model_metrics():
             "metrics": models
         })
     except Exception as e:
-        logger.error(f"Error getting model metrics: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error getting model metrics: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 @app.route('/admin/models/rollback-threshold', methods=['POST'])
 def set_rollback_threshold():
@@ -1207,8 +1206,8 @@ def set_rollback_threshold():
             "rollback_threshold": registry.rollback_threshold
         })
     except Exception as e:
-        logger.error(f"Error setting rollback threshold: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error setting rollback threshold: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 
 @app.route('/admin/models/export/pdf', methods=['GET'])
@@ -1284,8 +1283,8 @@ def export_pdf():
     except ImportError:
         return jsonify({"error": "reportlab not installed. Install with: pip install reportlab"}), 500
     except Exception as e:
-        logger.error(f"Error generating PDF: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"Error generating PDF: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 
 @app.route("/history")
@@ -1371,8 +1370,8 @@ def analyze():
             flash(str(exc), "error")
             return redirect(request.url)
         except Exception as exc:
-            logger.error("Analysis error: %s", exc)
-            flash(f"Error during analysis: {str(exc)}", "error")
+            logger.error("Analysis error: %s", exc, exc_info=True)
+            flash(f"Error during analysis. Please try again.", "error")
             return redirect(request.url)
         finally:
             cleanup_temp_upload(temp_path)
@@ -1415,8 +1414,8 @@ def api_explain():
             "confidence": disease_result.get("confidence", 0.0)
         })
     except Exception as exc:
-        logger.error("Error in API explain endpoint: %s", exc)
-        return jsonify({"status": "error", "error": str(exc)}), 500
+        logger.error("Error in API explain endpoint: %s", exc, exc_info=True)
+        return jsonify({"status": "error", "error": "An internal server error occurred"}), 500
 
 
 @app.route("/comparison", methods=["GET", "POST"])
@@ -1733,8 +1732,8 @@ def api_analyze():
         logger.warning("API upload rejected: %s", exc)
         return jsonify({"error": str(exc)}), exc.status_code
     except Exception as e:
-        logger.error(f"API analysis error: {e}")
-        return jsonify({"error": str(e)}), 500
+        logger.error(f"API analysis error: {e}", exc_info=True)
+        return jsonify({"error": "An internal server error occurred"}), 500
     finally:
         cleanup_temp_upload(temp_path)
 
@@ -1772,8 +1771,8 @@ def api_analyze_stream():
             yield f"data: {json.dumps({'step': 'complete', 'progress': 100, 'message': 'Analysis complete', 'data': results})}\n\n"
 
         except Exception as e:
-            logger.error(f"Streaming analysis error: {e}")
-            yield f"data: {json.dumps({'step': 'error', 'progress': 0, 'message': str(e)})}\n\n"
+            logger.error(f"Streaming analysis error: {e}", exc_info=True)
+            yield f"data: {json.dumps({'step': 'error', 'progress': 0, 'message': 'An internal server error occurred'})}\n\n"
 
     return Response(
         stream_with_context(generate()),
@@ -1865,14 +1864,14 @@ def api_batch_upload():
                         )
                         db.session.add(result)
                 except Exception as e:
-                    logger.error(f"Error processing image {filename}: {e}")
+                    logger.error(f"Error processing image {filename}: {e}", exc_info=True)
                     from models import AnalysisResult
                     result = AnalysisResult(
                         batch_job_id=job.id,
                         image_name=filename,
                         image_index=idx,
                         status='error',
-                        error_message=str(e)
+                        error_message="Failed to process this image. See server logs for details."
                     )
                     db.session.add(result)
             
@@ -1889,9 +1888,8 @@ def api_batch_upload():
         })
         
     except Exception as e:
-        logger.error(f"Batch upload error: {e}")
-        return jsonify({'error': str(e)}), 500
-
+        logger.error(f"Batch upload error: {e}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 @app.route("/api/batch_status/<job_id>", methods=["GET"])
 def api_batch_status(job_id):
@@ -2445,8 +2443,8 @@ def generate_report(analysis_id):
     try:
         from services.report_service import ReportGenerator
     except ImportError as e:
-        logger.error(f"Failed to import ReportGenerator: {e}")
-        return jsonify({'error': f'Report service not available: {str(e)}'}), 500
+        logger.error(f"Failed to import ReportGenerator: {e}", exc_info=True)
+        return jsonify({'error': f'Report service not available'}), 500
     
     analysis = AnalysisHistory.query.get(analysis_id)
     if not analysis:
@@ -2480,10 +2478,8 @@ def generate_report(analysis_id):
             download_name=f'analysis_report_{analysis_id}.pdf'
         )
     except Exception as e:
-        logger.error(f"Error generating report: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error generating report: {e}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 
 @app.route("/api/generate-summary-report")
@@ -2497,8 +2493,8 @@ def generate_summary_report():
     try:
         from services.report_service import ReportGenerator
     except ImportError as e:
-        logger.error(f"Failed to import ReportGenerator: {e}")
-        return jsonify({'error': f'Report service not available: {str(e)}'}), 500
+        logger.error(f"Failed to import ReportGenerator: {e}", exc_info=True)
+        return jsonify({'error': 'Report service not available'}), 500
     
     # Get date range
     days = request.args.get('days', 30, type=int)
@@ -2533,10 +2529,8 @@ def generate_summary_report():
             download_name=f'summary_report_{datetime.now().strftime("%Y%m%d")}.pdf'
         )
     except Exception as e:
-        logger.error(f"Error generating summary report: {e}")
-        import traceback
-        logger.error(traceback.format_exc())
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error generating summary report: {e}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 
 # --- Disease Database & Symptom Checker ---
@@ -2697,8 +2691,8 @@ def api_weather_forecast():
             'disease_predictions': predictions
         })
     except Exception as e:
-        logger.error(f"Error fetching weather forecast: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error fetching weather forecast: {e}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 
 @app.route("/api/disease-prediction/<disease_name>")
@@ -2742,8 +2736,8 @@ def api_disease_prediction(disease_name):
             'recommendations': recommendations
         })
     except Exception as e:
-        logger.error(f"Error getting disease prediction: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error getting disease prediction: {e}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 
 @app.route("/api/historical-patterns")
@@ -2781,8 +2775,8 @@ def api_historical_patterns():
             'total_occurrences': len(occurrences_data)
         })
     except Exception as e:
-        logger.error(f"Error analyzing historical patterns: {e}")
-        return jsonify({'error': str(e)}), 500
+        logger.error(f"Error analyzing historical patterns: {e}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 
 @app.route("/api/report-disease-occurrence", methods=['POST'])
@@ -2839,9 +2833,9 @@ def api_report_disease_occurrence():
             'occurrence_id': occurrence.id
         })
     except Exception as e:
-        logger.error(f"Error reporting disease occurrence: {e}")
+        logger.error(f"Error reporting disease occurrence: {e}", exc_info=True)
         db.session.rollback()
-        return jsonify({'error': str(e)}), 500
+        return jsonify({'error': 'An internal server error occurred'}), 500
 
 
 
