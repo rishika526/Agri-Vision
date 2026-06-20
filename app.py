@@ -57,6 +57,7 @@ import json
 from jinja2 import Environment, FileSystemLoader
 from model_registry import registry
 from services.weather_service import generate_weather_recommendations
+from services.yield_history_service import build_yield_history_report
 from services.yield_service import estimate_yield
 from services.auth_security_service import (
     AccountLockoutService,
@@ -2500,6 +2501,17 @@ def api_weather():
 
     weather["weather_recommendations"] = generate_weather_recommendations(weather)
     return jsonify({"status": "success", "weather": weather})
+
+
+@app.route("/api/yield/history")
+def api_yield_history():
+    """Return historical crop yield trend analytics."""
+    return jsonify(
+        build_yield_history_report(
+            crop=request.args.get("crop", "cotton"),
+            region=request.args.get("region"),
+        )
+    )
 
 
 @app.route("/api/analyze", methods=["POST"])
