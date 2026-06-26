@@ -2409,7 +2409,6 @@ def demo():
         return redirect(url_for("index"))
 
 
-
 @app.route("/api/chat_test", methods=["GET"])
 def api_chat_test():
     return jsonify({"status": "ok"})
@@ -2422,14 +2421,48 @@ def api_chat():
     if not data or "message" not in data:
         return jsonify({"reply": "I'm sorry, I didn't receive a message."}), 400
 
-    message = str(data["message"]).lower()
+    message = str(data["message"]).strip()
+
+    # --- Try Gemini API first ---
+    gemini_key = os.getenv("GEMINI_API_KEY")
+    if gemini_key:
+        try:
+            import google.generativeai as genai
+            genai.configure(api_key=gemini_key)
+            model = genai.GenerativeModel("gemini-1.5-flash")
+
+            system_prompt = """You are Agri-Vision AI, an expert agricultural assistant specializing in cotton farming. 
+
+Your role:
+- Answer questions about cotton crops, farming practices, diseases, pests, irrigation, fertilizers, soil, seasons, and yield
+- Give concise, practical, farmer-friendly answers (2-4 sentences max)
+- For disease diagnosis, suggest uploading an image to the Agri-Vision Analyze tab
+- For questions unrelated to agriculture or farming, politely say: "I specialize in agricultural topics. Please ask me about farming, crops, or plant health!"
+- Never make up specific product names or prices
+- Always be helpful, warm, and encouraging to farmers"""
+
+            response = model.generate_content(f"{system_prompt}\n\nFarmer's question: {message}")
+            reply = response.text.strip()
+            return jsonify({"reply": reply})
+
+        except Exception as e:
+            logger.warning(f"Gemini API failed, falling back to regex: {e}")
+
+    # --- Fallback: regex-based responses ---
+    message_lower = message.lower()
     responses = {
         r"\b(hello|hi|hey|howdy|greetings)\b": [
             "Hello there! How can I assist you with your cotton crop today?",
             "Hi! Need any help analyzing your farm data?"
         ],
+        r"\b(season|seasons|when to (grow|plant|sow)|best time|months?|kharif|rabi)\b": [
+            "Cotton is a Kharif crop best sown between April and June in India, when temperatures are 25–35°C. It matures in 150–180 days and is harvested between October and January."
+        ],
+        r"\b(material|materials|require|requirement|requirements|need|needs|input|inputs|seed|seeds|equipment)\b": [
+            "To grow cotton you need: certified Bt cotton seeds, NPK fertilizers (especially potassium), drip irrigation setup, pesticides for bollworm control, and well-draining loamy soil with pH 6–8."
+        ],
         r"\b(disease|diseases|sick|spots?|rot|blight)\b": [
-            "If you're noticing leaf spots or rotting, it could be Bacterial Blight or Target Spot. I highly recommend taking a picture and uploading it to our Analyze tab for an AI diagnosis."
+            "If you're noticing leaf spots or rotting, it could be Bacterial Blight or Target Spot. Upload a picture to our Analyze tab for an AI diagnosis!"
         ],
         r"\b(yield|yields|harvest|harvests|produce)\b": [
             "Yield depends heavily on the crop's health score and current growth stage. Check out the Dashboard for predictions across your fields!"
@@ -2438,44 +2471,36 @@ def api_chat():
             "Cotton responds well to a balanced NPK fertilizer. During the blooming and early boll stages, potassium is critical to maximize yield."
         ],
         r"\b(water|watering|irrigation|dry|drought)\b": [
-            "Maintain regular watering during the blossom phase. However, once bolls mature and start splitting, you should reduce irrigation to prevent rot."
+            "Maintain regular watering during the blossom phase. Once bolls mature and start splitting, reduce irrigation to prevent rot."
         ],
         r"\b(pest|pests|worm|worms|aphid|aphids|bug|bugs|insect|insects|bollworm)\b": [
-            "Pests like Pink Bollworm and Aphids are common enemies of cotton. I recommend deploying pheromone traps and scouting the fields twice a week."
+            "Pests like Pink Bollworm and Aphids are common enemies of cotton. Deploy pheromone traps and scout fields twice a week."
         ],
         r"\b(weather|temperature|rain|rainfall|humidity|climate)\b": [
-            "Weather plays a huge role in cotton health. Hot, dry spells stress bolls while excess rain can encourage fungal diseases. Use our weather tab to monitor conditions."
+            "Hot, dry spells stress bolls while excess rain encourages fungal diseases. Use our weather tab to monitor conditions."
         ],
         r"\b(soil|soils|ph|minerals|clay|loam|sandy)\b": [
-            "Cotton thrives in well-draining loamy soil with a pH of 5.8–8.0. Conduct a soil test before the season to identify any nutrient deficiencies."
+            "Cotton thrives in well-draining loamy soil with a pH of 5.8–8.0. Conduct a soil test before the season to identify nutrient deficiencies."
         ],
-        r"\b(grow|growth|growing|stage|stages|seedling|boll|bolls|flower|flowering)\b": [
-            "Cotton growth has 5 key stages: germination, seedling, vegetative, flowering/boll formation, and maturity. Each stage has unique care needs — the flowering stage is most critical!"
-        ],
-        r"\b(spray|spraying|pesticide|pesticides|fungicide|herbicide|chemical)\b": [
-            "When spraying, always follow label rates and avoid spraying during peak heat or wind. Consider integrated pest management (IPM) to reduce chemical dependency."
+        r"\b(stage|stages|seedling|boll|bolls|flower|flowering|germination|vegetative)\b": [
+            "Cotton growth has 5 key stages: germination, seedling, vegetative, flowering/boll formation, and maturity. The flowering stage is most critical!"
         ],
         r"\b(thank(?:s|s you)?|awesome|great|perfect)\b": [
-            "You're welcome! Feel free to ask any time. Happy farming! 🌱",
-            "Glad I could help! Let me know if you have more questions about your cotton crop."
+            "You're welcome! Happy farming! 🌱"
         ],
         r"\b(help|assist|support|guide|advice|tips?)\b": [
-            "I'm here to help! You can ask me about crop diseases, yield optimization, pest control, irrigation, fertilization, weather impacts, or soil health.",
-            "Sure! Try asking about cotton diseases, pest control, yield estimates, or upload an image in the Analyze tab for an instant AI diagnosis."
-        ],
-        r"\b(cotton|crop|crops|farm|farming|field|fields)\b": [
-            "Agri-Vision specializes in cotton crop analysis. Upload a field image in the Analyze tab for disease detection, yield prediction, and health scoring!"
+            "I'm here to help! Ask me about crop diseases, yield optimization, pest control, irrigation, fertilization, or soil health."
         ],
     }
 
-    reply = "I'm your Agri-Vision AI assistant. I specialize in cotton farming, crop diseases, and yield optimization. How can I help you?"
+    reply = "I'm your Agri-Vision AI assistant specializing in cotton farming. Ask me about diseases, pests, irrigation, fertilizers, or crop seasons!"
 
     for pattern, reply_options in responses.items():
-        if re.search(pattern, message):
+        if re.search(pattern, message_lower):
             reply = random.choice(reply_options)
             break
-    return jsonify({"reply": reply})
 
+    return jsonify({"reply": reply})
 
 @app.route("/api/weather")
 def api_weather():
